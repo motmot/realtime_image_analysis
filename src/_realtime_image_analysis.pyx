@@ -30,12 +30,6 @@ cimport c_python
 
 cimport ipp
 
-try:
-    import ArenaController as ArenaController
-    have_ArenaController_module = True
-except ImportError:
-    have_ArenaController_module = False
-
 cdef extern from "unistd.h":
     ctypedef long intptr_t
         
@@ -120,8 +114,6 @@ cdef class RealtimeAnalyzer:
     cdef ipp.Ipp8u _diff_threshold
     cdef float _clear_threshold
     
-    cdef int _use_arena
-    
     # calibration matrix
     cdef object _pmat, _pmat_inv, camera_center # numpy ndarrays
     cdef object _pmat_meters, _pmat_meters_inv, camera_center_meters # numpy ndarrays
@@ -160,25 +152,13 @@ cdef class RealtimeAnalyzer:
     # other stuff
     cdef ipp.IppiMomentState_64f *pState
 
-    cdef object arena_controller
-
     cdef object imname2im
     cdef int max_num_points
 
     def __new__(self,*args,**kw):
         # image moment calculation initialization
         CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &self.pState, ipp.ippAlgHintFast ) )
-        self.arena_controller = None
-        if have_ArenaController_module:
-            try:
-                self.arena_controller = ArenaController.ArenaController()
-            except Exception, exc:
-                print 'WARNING: could not create ArenaController:',exc.__class__,str(exc)
 
-    def close(self):
-        if self.arena_controller is not None:
-            self.arena_controller.close()
-            
     def __dealloc__(self):
         CHK_HAVEGIL( ipp.ippiMomentFree_64f( self.pState ))
 
@@ -193,7 +173,6 @@ cdef class RealtimeAnalyzer:
         self._roi2_radius = roi2_radius
         self._diff_threshold = 11
         self._clear_threshold = 0.2
-        self._use_arena = 0
         
         self._pmat = None
         self._pmat_inv = None
@@ -538,10 +517,6 @@ cdef class RealtimeAnalyzer:
             c_python.Py_END_ALLOW_THREADS
 
             if found_point:
-                if self._use_arena:
-                    if self.arena_controller is not None:
-                        self.arena_controller.arena_update(x0, y0, orientation,
-                                                              timestamp, framenumber )
                 if not (n_found_points+1==self.max_num_points): # only modify the image if more follow...
                     self.absdiff_im_roi2_view.set_val(0, roi2_sz )
                         
@@ -628,22 +603,6 @@ cdef class RealtimeAnalyzer:
         im = self.imname2im[which]
         return im
     
-    def rotation_calculation_init(self, int n_rot_samples):
-        if self.arena_controller is not None:
-            self.arena_controller.rotation_calculation_init( n_rot_samples )
-
-    def rotation_update(self, float x0, float y0, float orientation, double timestamp):
-        # convert back to ROI-relative coordinates
-        if self.arena_controller is not None:
-            x0 = x0 - self._left
-            y0 = y0 - self._bottom
-            self.arena_controller.rotation_update( x0, y0, orientation, timestamp )
-
-    def rotation_end(self):
-        cdef double new_x_cent, new_y_cent
-        if self.arena_controller is not None:
-            self.arena_controller.rotation_calculation_finish()
-        
     property roi2_radius:
         def __get__(self):
             return self._roi2_radius
@@ -662,12 +621,6 @@ cdef class RealtimeAnalyzer:
         def __set__(self,value):
             self._diff_threshold = value
         
-    property use_arena:
-        def __get__(self):
-            return self._use_arena
-        def __set__(self,value):
-            self._use_arena = value
-
     property scale_factor:
         def __get__(self):
             return self._scale_factor
