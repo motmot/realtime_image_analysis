@@ -1,15 +1,11 @@
 import os
 from setuptools import setup, Extension
 
-from motmot_utils import get_svnversion_persistent
-version_str = '0.4.dev%(svnversion)s'
-version = get_svnversion_persistent('realtime_image_analysis/version.py',version_str)
-
 install_requires = ['FastImage']
 
 import FastImage_util
 vals = FastImage_util.get_build_info(ipp_static=False,
-                                     ipp_version='5.1')
+                                     ipp_version='5.2')
 
 ipp_sources = vals.get('ipp_sources',[])
 ipp_include_dirs = vals.get('ipp_include_dirs',[])
@@ -43,10 +39,17 @@ if os.name.startswith('posix'):
     install_requires.append('posix_sched')
 
 setup(name='realtime_image_analysis',
-      version=version,
+      description="several image analysis functions that require Intel IPP and FastImage",
+      long_description=
+"""This code serves as the basis for at least 2 different classes of
+realtime trackers: 2D only trackers with no consideration of camera
+calibration and potentially-3D trackers with camera calibration and
+distortion information.""",
+      version='0.5.0',
       author="Andrew Straw",
       author_email="strawman@astraw.com",
-      description="several image analysis functions that require Intel IPP and FastImage",
+      url='http://code.astraw.com/projects/motmot',
+      license='BSD',
       packages = ['realtime_image_analysis'],
       ext_modules= ext_modules,
       install_requires = install_requires,
