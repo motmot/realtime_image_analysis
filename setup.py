@@ -3,9 +3,15 @@ from setuptools import setup, Extension
 
 install_requires = ['FastImage']
 
+import FastImage
+major,minor,build = FastImage.get_IPP_version()
 import FastImage_util
-vals = FastImage_util.get_build_info(ipp_static=False,
-                                     ipp_version='5.2')
+
+# build with same IPP as FastImage
+vals = FastImage_util.get_build_info(ipp_static=FastImage.get_IPP_static(),
+                                     ipp_version='%d.%d'%(major,minor),
+                                     ipp_arch=FastImage.get_IPP_arch(),
+                                     )
 
 ipp_sources = vals.get('ipp_sources',[])
 ipp_include_dirs = vals.get('ipp_include_dirs',[])
@@ -45,7 +51,7 @@ setup(name='realtime_image_analysis',
 realtime trackers: 2D only trackers with no consideration of camera
 calibration and potentially-3D trackers with camera calibration and
 distortion information.""",
-      version='0.5.0',
+      version='0.5.1',
       author="Andrew Straw",
       author_email="strawman@astraw.com",
       url='http://code.astraw.com/projects/motmot',
