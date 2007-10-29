@@ -25,3 +25,13 @@
   {  printf("SET_ERR(%d) called, %s: %d\n",errval,__FILE__,__LINE__);	\
     exit(errval);							\
   }
+
+
+#if defined(__GNUC__)
+#if defined(_WIN32)
+int __security_cookie;
+void __fastcall __security_check_cookie(void *stackAddress){}
+
+long long _allmul( long long a, long long b) {return a*b;}
+#endif
+#endif
