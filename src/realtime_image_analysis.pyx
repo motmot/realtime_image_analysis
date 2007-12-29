@@ -17,8 +17,9 @@ import numpy as nx
 import warnings
 import numpy.dual
 
-cimport FastImage
-import FastImage
+#cimport FastImage
+cimport motmot.FastImage.FastImage as FastImage
+import motmot.FastImage.FastImage as FastImage
 
 cdef double nan
 nan = nx.nan
@@ -32,7 +33,7 @@ cimport ipp
 
 cdef extern from "unistd.h":
     ctypedef long intptr_t
-        
+
 cdef extern from "c_fit_params.h":
     ctypedef enum CFitParamsReturnType:
         CFitParamsNoError
@@ -57,7 +58,7 @@ cdef extern from "motmot_ipp_macros.h":
 
 cdef extern from "c_time_time.h":
     double time_time()
-    
+
 cdef void CHK_HAVEGIL( ipp.IppStatus errval ) except *:
     if (errval != ipp.ippStsNoErr):
         raise FastImage.IppError(errval)
@@ -97,7 +98,7 @@ def pluecker_from_verts(A,B):
     B=nx.reshape(B,(4,1))
     L = nx.dot(A,nx.transpose(B)) - nx.dot(B,nx.transpose(A))
     return Lmatrix2Lcoords(L)
-    
+
 cdef class RealtimeAnalyzer:
 
     # full image size
@@ -109,11 +110,11 @@ cdef class RealtimeAnalyzer:
     cdef int _roi2_radius
 
     cdef double _scale_factor
-    
+
     # runtime parameters
     cdef ipp.Ipp8u _diff_threshold
     cdef float _clear_threshold
-    
+
     # calibration matrix
     cdef object _pmat, _pmat_inv, camera_center # numpy ndarrays
     cdef object _pmat_meters, _pmat_meters_inv, camera_center_meters # numpy ndarrays
@@ -121,9 +122,9 @@ cdef class RealtimeAnalyzer:
     cdef object _helper
 
     cdef ipp.Ipp8u _despeckle_threshold
-    
+
     cdef FastImage.Size _roi_sz
-        
+
     cdef int n_rot_samples
 
     # class A images:
@@ -132,7 +133,7 @@ cdef class RealtimeAnalyzer:
     # because we only want to malloc each image once, despite changing
     # input image size. The roi is a view of the active part. The roi2
     # is a view of the sub-region of the active part.
-    
+
     cdef FastImage.FastImage8u absdiff_im, cmpdiff_im # also raw_im
 
     cdef FastImage.FastImage8u absdiff_im_roi_view
@@ -173,14 +174,14 @@ cdef class RealtimeAnalyzer:
         self._roi2_radius = roi2_radius
         self._diff_threshold = 11
         self._clear_threshold = 0.2
-        
+
         self._pmat = None
         self._pmat_inv = None
         self._set_pmat = False
-        
+
         self.camera_center = None
         self.camera_center_meters = None
-        
+
         self._pmat_meters_inv = None
 
         self._helper = None
@@ -197,11 +198,11 @@ cdef class RealtimeAnalyzer:
         # 8u background
         self.mask_im=FastImage.FastImage8u(sz)
         self.mask_im.set_val(0,sz)
-        
+
         self.mean_im=FastImage.FastImage8u(sz)
         self.cmp_im=FastImage.FastImage8u(sz)
         self.cmpdiff_im=FastImage.FastImage8u(sz)
-        
+
         # create and update self.imname2im dict
         self.imname2im = {'absdiff' :self.absdiff_im,
                           'mean'    :self.mean_im,
@@ -211,16 +212,16 @@ cdef class RealtimeAnalyzer:
                           }
 
         self.roi = lbrt
-        
+
         # initialize background images
         self.mean_im_roi_view.set_val( 0, self._roi_sz )
 
     def set_reconstruct_helper( self, helper ):
         self._helper = helper
-        
+
     def get_pmat(self):
         return self._pmat
-    
+
     def set_pmat(self,value):
         self._pmat = nx.asarray(value)
 
@@ -276,7 +277,7 @@ cdef class RealtimeAnalyzer:
 
         inputs
         ------
-        
+
         timestamp
         framenumber
         use_roi2
@@ -288,9 +289,9 @@ cdef class RealtimeAnalyzer:
 
         outputs
         -------
-        
+
         [ (x0_abs, y0_abs, area, slope, eccentricity, p1, p2, p3, p4) ]
-        
+
         """
         cdef double x0, y0
         cdef double x0_abs, y0_abs, area, x0u, y0u, x1u, y1u
@@ -301,22 +302,22 @@ cdef class RealtimeAnalyzer:
         cdef double rise, run
         cdef double evalA, evalB
         cdef double evecA1, evecB1
-        
+
         cdef double Mu00, Uu11, Uu02, Uu20
         cdef int i
         cdef int result, eigen_err
-        
+
         cdef int index_x,index_y
-        
+
         cdef ipp.Ipp8u max_val
         cdef ipp.Ipp8u* max_val_ptr
         cdef ipp.Ipp8u max_std_diff
-        
+
         cdef ipp.Ipp8u clear_despeckle_thresh
 
         cdef FastImage.Size roi2_sz
         cdef int left2, right2, bottom2, top2
-        
+
         cdef int found_point
         cdef int n_found_points
 
@@ -329,7 +330,7 @@ cdef class RealtimeAnalyzer:
         svd = numpy.dual.svd # use fastest ATLAS/fortran libraries
 
         roi2_sz = FastImage.Size(21,21)
-        
+
         all_points_found = [] # len(all_points_found) == n_found_points
         n_found_points = 0
 
@@ -350,7 +351,7 @@ cdef class RealtimeAnalyzer:
                                           <ipp.Ipp8u*>raw_im_small.im,raw_im_small.step,
                                           <ipp.Ipp8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
                                           self._roi_sz.sz))
-       
+
         # mask unused part of absdiff_im to 0
         #self.absdiff_im.fast_set_val_masked( 0,
         #                                     self.mask_im,
@@ -358,7 +359,7 @@ cdef class RealtimeAnalyzer:
 
         CHK_NOGIL( ipp.ippiSet_8u_C1MR( 0, <ipp.Ipp8u*>self.absdiff_im.im, self.absdiff_im.step, self.absdiff_im.imsiz.sz,
                                         <ipp.Ipp8u*>self.mask_im.im, self.mask_im.step))
-        
+
         if use_cmp:
             # clip the minimum comparison value to diff_threshold
             CHK_NOGIL( ipp.ippiThreshold_Val_8u_C1IR(<ipp.Ipp8u*>self.cmp_im_roi_view.im,
@@ -519,12 +520,12 @@ cdef class RealtimeAnalyzer:
             if found_point:
                 if not (n_found_points+1==self.max_num_points): # only modify the image if more follow...
                     self.absdiff_im_roi2_view.set_val(0, roi2_sz )
-                        
+
             if return_first_xy:
                 #nominal: (x0_abs, y0_abs, area, slope, eccentricity, p1, p2, p3, p4, line_found, slope_found)
                 rval = [(index_x, index_y, max_std_diff, max_val, eccentricity, p1, p2, p3, p4, 0, found_point)]
                 return rval
-            
+
             if not found_point:
                 break
 
@@ -569,7 +570,7 @@ cdef class RealtimeAnalyzer:
             else:
                 x0u = x0_abs # fake undistorted data
                 y0u = y0_abs
-                
+
                 p1,p2,p3,p4 = -1, -1, -1, -1 # sentinel value (will be converted to nan)
                 line_found = False
                 ray_valid = 0
@@ -584,10 +585,10 @@ cdef class RealtimeAnalyzer:
 
             if c_lib.isinf(eccentricity):
                 eccentricity = near_inf
-                
+
             if c_lib.isinf(slope):
                 slope = near_inf
-                
+
             all_points_found.append(
                 (x0_abs, y0_abs, area, slope, eccentricity,
                  p1, p2, p3, p4, line_found, slope_found,
@@ -602,44 +603,44 @@ cdef class RealtimeAnalyzer:
     def get_image_view(self,which='mean'):
         im = self.imname2im[which]
         return im
-    
+
     property roi2_radius:
         def __get__(self):
             return self._roi2_radius
         def __set__(self,value):
             self._roi2_radius = value
-        
+
     property clear_threshold:
         def __get__(self):
             return self._clear_threshold
         def __set__(self,value):
             self._clear_threshold = value
-        
+
     property diff_threshold:
         def __get__(self):
             return self._diff_threshold
         def __set__(self,value):
             self._diff_threshold = value
-        
+
     property scale_factor:
         def __get__(self):
             return self._scale_factor
         def __set__(self,value):
             print 'setting scale_factor to',value
             self._scale_factor = value
-                        
+
     property roi:
         def __get__(self):
             return (self._left,self._bottom,self._right,self._top)
         def __set__(self,object lbrt):
             cdef int l,b,r,t
-            
+
             l,b,r,t = lbrt
             if (l==self._left and b==self._bottom and
                 r==self._right and t==self._top):
                 # nothing to do
                 return
-            
+
             self._left = l
             self._bottom = b
             self._right = r
@@ -655,7 +656,7 @@ cdef class RealtimeAnalyzer:
                 raise ValueError('attempting to set ROI top to %d (height %d)'%(self._top,self.maxheight))
 
             self._roi_sz = FastImage.Size( self._right-self._left+1, self._top-self._bottom+1 )
-            
+
             self.absdiff_im_roi_view = self.absdiff_im.roi(self._left,self._bottom,self._roi_sz)
             self.mean_im_roi_view = self.mean_im.roi(self._left,self._bottom,self._roi_sz)
             self.cmp_im_roi_view = self.cmp_im.roi(self._left,self._bottom,self._roi_sz)
@@ -693,8 +694,8 @@ def bg_help_slow( FastImage.FastImage32f running_mean_im,
     # now we do hack, erm, heuristic for bright points, which aren't gaussian.
     running_mean8u_im.get_compare_put( 200, noisy_pixels_mask, max_frame_size, FastImage.CmpGreater)
     compareframe8u.set_val_masked(25, noisy_pixels_mask, max_frame_size)
-                            
-            
+
+
 def bg_help( FastImage.FastImage32f running_mean_im,
              FastImage.FastImage32f fastframef32_tmp,
              FastImage.FastImage32f running_sumsqf,
@@ -714,24 +715,24 @@ def bg_help( FastImage.FastImage32f running_mean_im,
     CHK_NOGIL( ipp.ippiAddWeighted_8u32f_C1IR( <ipp.Ipp8u*>hw_roi_frame.im, hw_roi_frame.step,
                                                <ipp.Ipp32f*>running_mean_im.im, running_mean_im.step,
                                                max_frame_size.sz, ALPHA))
-    
+
     # maintain 8bit unsigned background image
     #running_mean_im.fast_get_8u_copy_put( running_mean8u_im, max_frame_size ) # done
     CHK_NOGIL( ipp.ippiConvert_32f8u_C1R(
         <ipp.Ipp32f*>running_mean_im.im,running_mean_im.step,
         <ipp.Ipp8u*>running_mean8u_im.im,running_mean8u_im.step,
         max_frame_size.sz, ipp.ippRndNear ))
-    
+
     # standard deviation calculation
     #hw_roi_frame.fast_get_32f_copy_put(fastframef32_tmp,max_frame_size) # done
     CHK_NOGIL( ipp.ippiConvert_8u32f_C1R(<ipp.Ipp8u*>hw_roi_frame.im, hw_roi_frame.step,
                                          <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                          max_frame_size.sz ))
-    
+
     #fastframef32_tmp.fast_toself_square(max_frame_size) # current**2 # done
     CHK_NOGIL( ipp.ippiSqr_32f_C1IR( <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                      max_frame_size.sz))
-    
+
     #running_sumsqf.fast_toself_add_weighted_32f( fastframef32_tmp, max_frame_size, ALPHA) # done
     CHK_NOGIL( ipp.ippiAddWeighted_32f_C1IR( <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                              <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
@@ -745,7 +746,7 @@ def bg_help( FastImage.FastImage32f running_mean_im,
                                    <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
                                    <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step,
                                    max_frame_size.sz))
-    
+
     # now create frame for comparison
     #running_stdframe.fast_toself_multiply(C,max_frame_size) # done
     CHK_NOGIL( ipp.ippiMulC_32f_C1IR(C, <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step, max_frame_size.sz))
@@ -755,7 +756,7 @@ def bg_help( FastImage.FastImage32f running_mean_im,
         <ipp.Ipp32f*>running_stdframe.im,running_stdframe.step,
         <ipp.Ipp8u*>compareframe8u.im,compareframe8u.step,
         max_frame_size.sz, ipp.ippRndNear ))
-    
+
     # now we do hack, erm, heuristic for bright points, which aren't gaussian.
     #running_mean8u_im.fast_get_compare_int_put_greater( 200, noisy_pixels_mask, max_frame_size)
     CHK_NOGIL( ipp.ippiCompareC_8u_C1R( <ipp.Ipp8u*>running_mean8u_im.im,running_mean8u_im.step,
@@ -763,7 +764,7 @@ def bg_help( FastImage.FastImage32f running_mean_im,
                                         <ipp.Ipp8u*>noisy_pixels_mask.im,noisy_pixels_mask.step,
                                         max_frame_size.sz,
                                         ipp.ippCmpGreater))
-    
+
     #compareframe8u.fast_set_val_masked(25, noisy_pixels_mask, max_frame_size) # done
     CHK_NOGIL( ipp.ippiSet_8u_C1MR( 25, <ipp.Ipp8u*>compareframe8u.im, compareframe8u.step, max_frame_size.sz,
                                     <ipp.Ipp8u*>noisy_pixels_mask.im, noisy_pixels_mask.step))
@@ -875,4 +876,4 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
         res = None
     return res
 
-    
+
