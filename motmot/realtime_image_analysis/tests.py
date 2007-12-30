@@ -1,6 +1,6 @@
 import unittest
-import realtime_image_analysis as ria
-import FastImage
+import motmot.realtime_image_analysis.realtime_image_analysis as ria
+import motmot.FastImage.FastImage as FastImage
 import numpy
 
 class TestRealtimeImageAnalysis(unittest.TestCase):
@@ -20,7 +20,7 @@ class TestRealtimeImageAnalysis(unittest.TestCase):
         sz = FastImage.Size(self.w,self.h)
         roi_im=FastImage.FastImage8u(sz)
         self.ra.do_work(roi_im,timestamp,framenumber,use_roi2,use_cmp)
-        
+
     def test_basic_roi2(self):
         timestamp = 0.0
         framenumber = 0
@@ -38,7 +38,7 @@ class TestRealtimeImageAnalysis(unittest.TestCase):
         sz = FastImage.Size(self.w,self.h)
         roi_im=FastImage.FastImage8u(sz)
         self.ra.do_work(roi_im,timestamp,framenumber,use_roi2,use_cmp)
-        
+
     def test_variance_roi2(self):
         timestamp = 0.0
         framenumber = 0
