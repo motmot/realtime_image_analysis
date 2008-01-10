@@ -99,6 +99,62 @@ def pluecker_from_verts(A,B):
     L = nx.dot(A,nx.transpose(B)) - nx.dot(B,nx.transpose(A))
     return Lmatrix2Lcoords(L)
 
+cdef do_3d_operations_on_2d_point_c(object undistort,
+                                    object pmat_inv, object pmat_meters_inv,
+                                    object camera_center, object camera_center_meters,
+                                    double x0_abs, double y0_abs,
+                                    double rise, double run):
+        cdef double x0u, y0u, x1u, y1u
+
+        matrixmultiply = numpy.dot
+        svd = numpy.dual.svd # use fastest ATLAS/fortran libraries
+
+        # calculate plane containing camera origin and found line
+        # in 3D world coords
+
+        # Step 1) Find world coordinates points defining plane:
+        #    A) found point
+        x0u, y0u = undistort( x0_abs, y0_abs )
+        found_point_image_plane = [x0u,y0u,1.0]
+        X0=matrixmultiply(pmat_inv,found_point_image_plane)
+
+        #    B) another point on found line
+        x1u, y1u = undistort(x0_abs+run,y0_abs+rise)
+        X1=matrixmultiply(pmat_inv,[x1u,y1u,1.0])
+
+        #    C) world coordinates of camera center already known
+
+        # Step 2) Find world coordinates of plane
+        A = nx.array( [ X0, X1, camera_center] ) # 3 points define plane
+        u,d,vt=svd(A,full_matrices=True)
+        Pt = vt[3,:] # plane parameters
+
+        p1,p2,p3,p4 = Pt[0:4]
+        line_found = True
+        if c_lib.isnan(p1):
+            print 'ERROR: SVD returned nan'
+
+        # calculate pluecker coords of 3D ray from camera center to point
+        # calculate 3D coords of point on image plane
+        X0meters = numpy.dot(pmat_meters_inv, found_point_image_plane )
+        X0meters = X0meters[:3]/X0meters[3] # convert to shape = (3,)
+        # project line
+        pluecker_meters = pluecker_from_verts(X0meters,camera_center_meters)
+        ray_valid = 1
+        (ray0, ray1, ray2, ray3, ray4, ray5) = pluecker_meters # unpack
+
+        return (x0u, y0u,
+                p1, p2, p3, p4,
+                line_found, ray_valid,
+                ray0, ray1, ray2, ray3, ray4, ray5)
+
+def do_3d_operations_on_2d_point(object undistort,
+                                 object pmat_inv, object pmat_meters_inv,
+                                 object camera_center, object camera_center_meters,
+                                 double x0_abs, double y0_abs,
+                                 double rise, double run):
+    return do_3d_operations_on_2d_point_c( undistort, pmat_inv, pmat_meters_inv, camera_center, camera_center_meters, x0_abs, y0_abs, rise, run)
+
 cdef class RealtimeAnalyzer:
 
     # full image size
@@ -294,7 +350,7 @@ cdef class RealtimeAnalyzer:
 
         """
         cdef double x0, y0
-        cdef double x0_abs, y0_abs, area, x0u, y0u, x1u, y1u
+        cdef double x0_abs, y0_abs, area, x0u, y0u
         cdef double orientation
         cdef double slope, eccentricity
         cdef double p1, p2, p3, p4
@@ -325,9 +381,6 @@ cdef class RealtimeAnalyzer:
         cdef double now
 
         entry_time = time.time()
-
-        matrixmultiply = numpy.dot
-        svd = numpy.dual.svd # use fastest ATLAS/fortran libraries
 
         roi2_sz = FastImage.Size(21,21)
 
@@ -530,43 +583,17 @@ cdef class RealtimeAnalyzer:
                 break
 
             if self._helper is not None:
-
                 # (If we have self._helper _pmat_inv, we can assume we have
                 # self._pmat_inv and self._pmat_meters.)
+                (x0u, y0u,
+                p1, p2, p3, p4,
+                line_found, ray_valid,
+                ray0, ray1, ray2, ray3, ray4, ray5) = do_3d_operations_on_2d_point_c(self._helper.undistort,
+                                                                                     self._pmat_inv, self._pmat_meters_inv,
+                                                                                     self.camera_center, self.camera_center_meters,
+                                                                                     x0_abs, y0_abs,
+                                                                                     rise, run)
 
-                undistort = self._helper.undistort # shorthand
-
-                # calculate plane containing camera origin and found line
-                # in 3D world coords
-
-                # Step 1) Find world coordinates points defining plane:
-                #    A) found point
-                x0u, y0u = undistort( x0_abs, y0_abs )
-                found_point_image_plane = [x0u,y0u,1.0]
-                X0=matrixmultiply(self._pmat_inv,found_point_image_plane)
-                #    B) another point on found line
-                x1u, y1u = undistort(x0_abs+run,y0_abs+rise)
-                X1=matrixmultiply(self._pmat_inv,[x1u,y1u,1.0])
-                #    C) world coordinates of camera center already known
-
-                # Step 2) Find world coordinates of plane
-                A = nx.array( [ X0, X1, self.camera_center] ) # 3 points define plane
-                u,d,vt=svd(A,full_matrices=True)
-                Pt = vt[3,:] # plane parameters
-
-                p1,p2,p3,p4 = Pt[0:4]
-                line_found = True
-                if c_lib.isnan(p1):
-                    print 'ERROR: SVD returned nan'
-
-                # calculate pluecker coords of 3D ray from camera center to point
-                # calculate 3D coords of point on image plane
-                X0meters = numpy.dot(self._pmat_meters_inv, found_point_image_plane )
-                X0meters = X0meters[:3]/X0meters[3] # convert to shape = (3,)
-                # project line
-                pluecker_meters = pluecker_from_verts(X0meters,self.camera_center_meters)
-                ray_valid = 1
-                (ray0, ray1, ray2, ray3, ray4, ray5) = pluecker_meters # unpack
             else:
                 x0u = x0_abs # fake undistorted data
                 y0u = y0_abs
