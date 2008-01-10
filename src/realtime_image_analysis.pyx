@@ -571,6 +571,7 @@ cdef class RealtimeAnalyzer:
                 x0u = x0_abs # fake undistorted data
                 y0u = y0_abs
 
+                p1,p2,p3,p4 = -1, -1, -1, -1 # sentinel value (will be converted to nan)
                 line_found = False
                 ray_valid = 0
                 (ray0, ray1, ray2, ray3, ray4, ray5) = (0,0,0, 0,0,0)
