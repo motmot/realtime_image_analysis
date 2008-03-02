@@ -71,25 +71,6 @@ cdef print_8u_arr(ipp.Ipp8u* src,int width,int height,int src_step):
     print
   print
 
-L_i = nx.array([0,0,0,1,3,2])
-L_j = nx.array([1,2,3,2,1,3])
-
-def Lmatrix2Lcoords(Lmatrix):
-    return Lmatrix[L_i,L_j]
-
-def pluecker_from_verts(A,B):
-    """
-    See Hartley & Zisserman (2003) p. 70
-    """
-    if len(A)==3:
-        A = A[0], A[1], A[2], 1.0
-    if len(B)==3:
-        B = B[0], B[1], B[2], 1.0
-    A=nx.reshape(A,(4,1))
-    B=nx.reshape(B,(4,1))
-    L = nx.dot(A,nx.transpose(B)) - nx.dot(B,nx.transpose(A))
-    return Lmatrix2Lcoords(L)
-
 cdef class RealtimeAnalyzer:
 
     # full image size
