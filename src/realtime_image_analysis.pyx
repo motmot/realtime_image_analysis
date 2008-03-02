@@ -1,21 +1,14 @@
-#emacs, this is -*-Python-*- mode
+# emacs, this is -*-Python-*- mode
 
-# This code has grown by accretion for a long, long time and serves as
-# the basis for at least 2 different classes of realtime trackers: 2D
-# only trackers with no consideration of camera calibration and
-# potentially-3D trackers with camera calibration and distortion
-# information.
-
-# The basic idea is to use the Intel IPP Library to do the heavy
-# lifting and release Python's global interpreter lock (GIL) whenever
-# possible, so that work can continue in other threads. This allows,
-# for example, processing images on one CPU while grabbing them on
-# another.
+# This code serves as the basis for realtime trackers.  The basic idea
+# is to use the Intel IPP Library to do the heavy lifting and release
+# Python's global interpreter lock (GIL) whenever possible, so that
+# work can continue in other threads. This allows, for example,
+# processing images on one CPU while grabbing them on another.
 
 import time
 import numpy as nx
 import warnings
-import numpy.dual
 
 #cimport FastImage
 cimport motmot.FastImage.FastImage as FastImage
@@ -23,8 +16,6 @@ import motmot.FastImage.FastImage as FastImage
 
 cdef double nan
 nan = nx.nan
-
-near_inf = 9.999999e20
 
 cimport c_lib
 cimport c_python
@@ -99,62 +90,6 @@ def pluecker_from_verts(A,B):
     L = nx.dot(A,nx.transpose(B)) - nx.dot(B,nx.transpose(A))
     return Lmatrix2Lcoords(L)
 
-cdef do_3d_operations_on_2d_point_c(object undistort,
-                                    object pmat_inv, object pmat_meters_inv,
-                                    object camera_center, object camera_center_meters,
-                                    double x0_abs, double y0_abs,
-                                    double rise, double run):
-        cdef double x0u, y0u, x1u, y1u
-
-        matrixmultiply = numpy.dot
-        svd = numpy.dual.svd # use fastest ATLAS/fortran libraries
-
-        # calculate plane containing camera origin and found line
-        # in 3D world coords
-
-        # Step 1) Find world coordinates points defining plane:
-        #    A) found point
-        x0u, y0u = undistort( x0_abs, y0_abs )
-        found_point_image_plane = [x0u,y0u,1.0]
-        X0=matrixmultiply(pmat_inv,found_point_image_plane)
-
-        #    B) another point on found line
-        x1u, y1u = undistort(x0_abs+run,y0_abs+rise)
-        X1=matrixmultiply(pmat_inv,[x1u,y1u,1.0])
-
-        #    C) world coordinates of camera center already known
-
-        # Step 2) Find world coordinates of plane
-        A = nx.array( [ X0, X1, camera_center] ) # 3 points define plane
-        u,d,vt=svd(A,full_matrices=True)
-        Pt = vt[3,:] # plane parameters
-
-        p1,p2,p3,p4 = Pt[0:4]
-        line_found = True
-        if c_lib.isnan(p1):
-            print 'ERROR: SVD returned nan'
-
-        # calculate pluecker coords of 3D ray from camera center to point
-        # calculate 3D coords of point on image plane
-        X0meters = numpy.dot(pmat_meters_inv, found_point_image_plane )
-        X0meters = X0meters[:3]/X0meters[3] # convert to shape = (3,)
-        # project line
-        pluecker_meters = pluecker_from_verts(X0meters,camera_center_meters)
-        ray_valid = 1
-        (ray0, ray1, ray2, ray3, ray4, ray5) = pluecker_meters # unpack
-
-        return (x0u, y0u,
-                p1, p2, p3, p4,
-                line_found, ray_valid,
-                ray0, ray1, ray2, ray3, ray4, ray5)
-
-def do_3d_operations_on_2d_point(object undistort,
-                                 object pmat_inv, object pmat_meters_inv,
-                                 object camera_center, object camera_center_meters,
-                                 double x0_abs, double y0_abs,
-                                 double rise, double run):
-    return do_3d_operations_on_2d_point_c( undistort, pmat_inv, pmat_meters_inv, camera_center, camera_center_meters, x0_abs, y0_abs, rise, run)
-
 cdef class RealtimeAnalyzer:
 
     # full image size
@@ -165,17 +100,9 @@ cdef class RealtimeAnalyzer:
 
     cdef int _roi2_radius
 
-    cdef double _scale_factor
-
     # runtime parameters
     cdef ipp.Ipp8u _diff_threshold
     cdef float _clear_threshold
-
-    # calibration matrix
-    cdef object _pmat, _pmat_inv, camera_center # numpy ndarrays
-    cdef object _pmat_meters, _pmat_meters_inv, camera_center_meters # numpy ndarrays
-    cdef object _set_pmat
-    cdef object _helper
 
     cdef ipp.Ipp8u _despeckle_threshold
 
@@ -231,19 +158,6 @@ cdef class RealtimeAnalyzer:
         self._diff_threshold = 11
         self._clear_threshold = 0.2
 
-        self._pmat = None
-        self._pmat_inv = None
-        self._set_pmat = False
-
-        self.camera_center = None
-        self.camera_center_meters = None
-
-        self._pmat_meters_inv = None
-
-        self._helper = None
-
-        self._scale_factor = nan
-
         self._despeckle_threshold = 5
         self.n_rot_samples = 100*60 # 1 minute
 
@@ -272,49 +186,6 @@ cdef class RealtimeAnalyzer:
         # initialize background images
         self.mean_im_roi_view.set_val( 0, self._roi_sz )
 
-    def set_reconstruct_helper( self, helper ):
-        self._helper = helper
-
-    def get_pmat(self):
-        return self._pmat
-
-    def set_pmat(self,value):
-        self._pmat = nx.asarray(value)
-
-        P = self._pmat
-        determinant = numpy.dual.det
-        r_ = nx.r_
-
-        # find camera center in 3D world coordinates
-        col0_asrow = P[nx.newaxis,:,0]
-        col1_asrow = P[nx.newaxis,:,1]
-        col2_asrow = P[nx.newaxis,:,2]
-        col3_asrow = P[nx.newaxis,:,3]
-        X = determinant(  r_[ col1_asrow, col2_asrow, col3_asrow ] )
-        Y = -determinant( r_[ col0_asrow, col2_asrow, col3_asrow ] )
-        Z = determinant(  r_[ col0_asrow, col1_asrow, col3_asrow ] )
-        T = -determinant( r_[ col0_asrow, col1_asrow, col2_asrow ] )
-
-        self.camera_center = nx.array( [ X/T, Y/T, Z/T, 1.0 ] )
-        self._pmat_inv = numpy.dual.pinv(self._pmat)
-        self._set_pmat = True
-
-        scale_array = numpy.ones((3,4))
-        scale_array[:,3] = self._scale_factor # mulitply last column by scale_factor
-        self._pmat_meters = scale_array*self._pmat # element-wise multiplication
-        self._pmat_meters_inv = numpy.dual.pinv(self._pmat_meters)
-        P = self._pmat_meters
-        # find camera center in 3D world coordinates
-        col0_asrow = P[nx.newaxis,:,0]
-        col1_asrow = P[nx.newaxis,:,1]
-        col2_asrow = P[nx.newaxis,:,2]
-        col3_asrow = P[nx.newaxis,:,3]
-        X = determinant(  r_[ col1_asrow, col2_asrow, col3_asrow ] )
-        Y = -determinant( r_[ col0_asrow, col2_asrow, col3_asrow ] )
-        Z = determinant(  r_[ col0_asrow, col1_asrow, col3_asrow ] )
-        T = -determinant( r_[ col0_asrow, col1_asrow, col2_asrow ] )
-        self.camera_center_meters = nx.array( [ X/T, Y/T, Z/T, 1.0 ] )
-
     def distort( self, float x0, float y0 ):
         if self._helper is None:
             return x0, y0
@@ -326,10 +197,9 @@ cdef class RealtimeAnalyzer:
                 int framenumber,
                 int use_roi2,
                 int use_cmp=0,
-                int return_first_xy=0,
                 double max_duration_sec=0.0
                 ):
-        """find fly and orientation (fast enough for realtime use)
+        """find location and orientation of local points (fast enough for realtime use)
 
         inputs
         ------
@@ -341,21 +211,16 @@ cdef class RealtimeAnalyzer:
         optional inputs (default to 0)
         ------------------------------
         use_cmp -- perform more detailed analysis against cmp image (used with ongoing variance estimation)
-        return_first_xy -- for debugging
 
         outputs
         -------
 
-        [ (x0_abs, y0_abs, area, slope, eccentricity, p1, p2, p3, p4) ]
+        [ (x0_abs, y0_abs, area, slope, eccentricity) ] -- with a tuple for each point found
 
         """
         cdef double x0, y0
-        cdef double x0_abs, y0_abs, area, x0u, y0u
-        cdef double orientation
+        cdef double x0_abs, y0_abs, area
         cdef double slope, eccentricity
-        cdef double p1, p2, p3, p4
-        cdef double eval1, eval2
-        cdef double rise, run
         cdef double evalA, evalB
         cdef double evecA1, evecB1
 
@@ -535,7 +400,6 @@ cdef class RealtimeAnalyzer:
                                                 &evalB, &evecB1)
                     if eigen_err:
                         slope = nan
-                        orientation = nan
                         eccentricity = 0.0
                     else:
                         rise = 1.0 # 2nd component of eigenvectors will always be 1.0
@@ -547,25 +411,20 @@ cdef class RealtimeAnalyzer:
                             eccentricity = evalB/evalA
                         slope = rise/run
 
-                        # This "orientation" is purely for J.B.
-                        orientation = c_lib.atan2(rise,run)
-                        orientation = orientation + 1.57079632679489661923 # (pi/2)
                 elif result == CFitParamsZeroMomentError:
-                    orientation = nan
                     x0 = nan
                     y0 = nan
                     x0_abs = nan
                     y0_abs = nan
                     found_point = 0
-                elif result == CFitParamsCentralMomentError: orientation = nan
+                elif result == CFitParamsCentralMomentError:
+                    slope = nan
                 else: SET_ERR(1)
 
                 # set x0 and y0 relative to whole frame
                 if found_point:
                     x0_abs = x0+left2
                     y0_abs = y0+bottom2
-##                    else:
-##                        SET_ERR(2)
 
             # grab GIL
             c_python.Py_END_ALLOW_THREADS
@@ -574,54 +433,11 @@ cdef class RealtimeAnalyzer:
                 if not (n_found_points+1==self.max_num_points): # only modify the image if more follow...
                     self.absdiff_im_roi2_view.set_val(0, roi2_sz )
 
-            if return_first_xy:
-                #nominal: (x0_abs, y0_abs, area, slope, eccentricity, p1, p2, p3, p4, line_found, slope_found)
-                rval = [(index_x, index_y, max_std_diff, max_val, eccentricity, p1, p2, p3, p4, 0, found_point)]
-                return rval
-
             if not found_point:
                 break
 
-            if self._helper is not None:
-                # (If we have self._helper _pmat_inv, we can assume we have
-                # self._pmat_inv and self._pmat_meters.)
-                (x0u, y0u,
-                p1, p2, p3, p4,
-                line_found, ray_valid,
-                ray0, ray1, ray2, ray3, ray4, ray5) = do_3d_operations_on_2d_point_c(self._helper.undistort,
-                                                                                     self._pmat_inv, self._pmat_meters_inv,
-                                                                                     self.camera_center, self.camera_center_meters,
-                                                                                     x0_abs, y0_abs,
-                                                                                     rise, run)
-
-            else:
-                x0u = x0_abs # fake undistorted data
-                y0u = y0_abs
-
-                p1,p2,p3,p4 = -1, -1, -1, -1 # sentinel value (will be converted to nan)
-                line_found = False
-                ray_valid = 0
-                (ray0, ray1, ray2, ray3, ray4, ray5) = (0,0,0, 0,0,0)
-
-            # prevent nan and inf from going across network
-            if c_lib.isnan(slope):
-                slope = 0.0
-                slope_found = False
-            else:
-                slope_found = True
-
-            if c_lib.isinf(eccentricity):
-                eccentricity = near_inf
-
-            if c_lib.isinf(slope):
-                slope = near_inf
-
             all_points_found.append(
-                (x0_abs, y0_abs, area, slope, eccentricity,
-                 p1, p2, p3, p4, line_found, slope_found,
-                 x0u, y0u,
-                 ray_valid,
-                 ray0, ray1, ray2, ray3, ray4, ray5)
+                (x0_abs, y0_abs, area, slope, eccentricity)
                 )
             n_found_points = n_found_points+1
 
