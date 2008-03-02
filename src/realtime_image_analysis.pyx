@@ -220,7 +220,7 @@ cdef class RealtimeAnalyzer:
         """
         cdef double x0, y0
         cdef double x0_abs, y0_abs, area
-        cdef double slope, eccentricity
+        cdef double rise, run, slope, eccentricity
         cdef double evalA, evalB
         cdef double evecA1, evecB1
 
