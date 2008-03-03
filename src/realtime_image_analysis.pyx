@@ -617,6 +617,7 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
     c_python.Py_BEGIN_ALLOW_THREADS
 
     # maintain running average
+    # <x>
     CHK_NOGIL( ipp.ippiAddWeighted_8u32f_C1IR( <ipp.Ipp8u*>hw_roi_frame.im, hw_roi_frame.step,
                                                <ipp.Ipp32f*>running_mean_im.im, running_mean_im.step,
                                                max_frame_size.sz, ALPHA))
@@ -638,11 +639,13 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
     if BENCHMARK:
         t43 = time_time()
 
+    # x^2
     CHK_NOGIL( ipp.ippiSqr_32f_C1IR( <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                      max_frame_size.sz))
     if BENCHMARK:
         t44 = time_time()
 
+    # <x^2>
     CHK_NOGIL( ipp.ippiAddWeighted_32f_C1IR( <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                              <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
                                              max_frame_size.sz, ALPHA))
@@ -650,16 +653,23 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
         t45 = time_time()
 
     ### GETS SLOWER
+    # <x>^2
     CHK_NOGIL( ipp.ippiSqr_32f_C1R( <ipp.Ipp32f*>running_mean_im.im, running_mean_im.step,
                                     <ipp.Ipp32f*>mean2.im, mean2.step,
                                     max_frame_size.sz))
     if BENCHMARK:
         t46 = time_time()
 
+    # <x^2> - <x>^2
     CHK_NOGIL( ipp.ippiSub_32f_C1R(<ipp.Ipp32f*>mean2.im, mean2.step,
                                    <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
                                    <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step,
                                    max_frame_size.sz))
+
+    # sqrt( <x^2> - <x>^2 )
+    CHK_NOGIL( ipp.ippiSqrt_32f_C1IR(<ipp.Ipp32f*>running_stdframe.im, running_stdframe.step,
+                                     max_frame_size.sz))
+
     if BENCHMARK:
         t47 = time_time()
 
