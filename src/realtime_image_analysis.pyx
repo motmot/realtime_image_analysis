@@ -611,6 +611,8 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
                  int bench=0):
     cdef int BENCHMARK
     cdef int RAW_IPP
+    cdef ipp.IppStatus errval
+
     BENCHMARK = bench
     cdef double t41, t42, t43, t44, t45, t46, t47, t48, t49, t491, t492
 
@@ -668,8 +670,17 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
 
 
     # sqrt( <x^2> - <x>^2 )
-    CHK_NOGIL( ipp.ippiSqrt_32f_C1IR(<ipp.Ipp32f*>running_stdframe.im, running_stdframe.step,
-                                     max_frame_size.sz))
+    # clip
+    CHK_NOGIL( ipp.ippiThreshold_Val_32f_C1IR(<ipp.Ipp32f*>running_stdframe.im,
+                                              running_stdframe.step,
+                                              max_frame_size.sz,
+                                              0.0001,
+                                              0.0001,
+                                              ipp.ippCmpLess))
+    errval= ipp.ippiSqrt_32f_C1IR(<ipp.Ipp32f*>running_stdframe.im,
+                                  running_stdframe.step,
+                                  max_frame_size.sz)
+    CHK_NOGIL(errval)
 
     if BENCHMARK:
         t47 = time_time()
