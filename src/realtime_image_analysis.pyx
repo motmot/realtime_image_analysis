@@ -666,6 +666,7 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
                                    <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step,
                                    max_frame_size.sz))
 
+
     # sqrt( <x^2> - <x>^2 )
     CHK_NOGIL( ipp.ippiSqrt_32f_C1IR(<ipp.Ipp32f*>running_stdframe.im, running_stdframe.step,
                                      max_frame_size.sz))
