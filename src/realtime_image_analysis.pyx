@@ -602,6 +602,7 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
                  FastImage.FastImage32f fastframef32_tmp,
                  FastImage.FastImage32f running_sumsqf,
                  FastImage.FastImage32f mean2,
+                 FastImage.FastImage32f std2,
                  FastImage.FastImage32f running_stdframe,
                  float n_sigma,
                  FastImage.FastImage8u compareframe8u,
@@ -609,6 +610,30 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
                  FastImage.FastImage8u noisy_pixels_mask,
                  int bright_non_gaussian_replacement,
                  int bench=0):
+    """
+    = Arguments =
+
+    FastImage.FastImage32f running_mean_im   IO - current estimate of mean of x
+    FastImage.FastImage8u hw_roi_frame       Input - current image
+    FastImage.Size max_frame_size            Input - size of all images
+    float ALPHA                              Input
+    FastImage.FastImage8u running_mean8u_im  Output
+    FastImage.FastImage32f fastframef32_tmp  Output (temp/scratch)
+    FastImage.FastImage32f running_sumsqf    IO - current estimate of mean of x^2
+    FastImage.FastImage32f mean2             Output - running_mean_im^2
+    FastImage.FastImage32f std2              Output - running_sumsqf-mean2
+    FastImage.FastImage32f running_stdframe  Output - sqrt(std2)
+    float n_sigma                            Input
+    FastImage.FastImage8u compareframe8u     Output
+    int bright_non_gaussian_cutoff           Input
+    FastImage.FastImage8u noisy_pixels_mask  Input
+    int bright_non_gaussian_replacement      Input
+    int bench                                Input
+
+    = Returns =
+    Benchmarking information if bench != 0
+
+    """
     cdef int BENCHMARK
     cdef int RAW_IPP
     cdef ipp.IppStatus errval
@@ -665,18 +690,16 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
     # <x^2> - <x>^2
     CHK_NOGIL( ipp.ippiSub_32f_C1R(<ipp.Ipp32f*>mean2.im, mean2.step,
                                    <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
-                                   <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step,
+                                   <ipp.Ipp32f*>std2.im, std2.step,
                                    max_frame_size.sz))
 
-
-    # sqrt( <x^2> - <x>^2 )
+    # sqrt( |<x^2> - <x>^2| )
     # clip
-    CHK_NOGIL( ipp.ippiThreshold_Val_32f_C1IR(<ipp.Ipp32f*>running_stdframe.im,
-                                              running_stdframe.step,
-                                              max_frame_size.sz,
-                                              0.0001,
-                                              0.0001,
-                                              ipp.ippCmpLess))
+    # XXX should use copy version
+    CHK_NOGIL( ipp.ippiAbs_32f_C1R(<ipp.Ipp32f*>std2.im, std2.step,
+                                   <ipp.Ipp32f*>running_stdframe.im,
+                                   running_stdframe.step,
+                                   max_frame_size.sz))
     errval= ipp.ippiSqrt_32f_C1IR(<ipp.Ipp32f*>running_stdframe.im,
                                   running_stdframe.step,
                                   max_frame_size.sz)
@@ -686,7 +709,8 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
         t47 = time_time()
 
     # now create frame for comparison
-    CHK_NOGIL( ipp.ippiMulC_32f_C1IR(n_sigma, <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step, max_frame_size.sz))
+    if n_sigma != 1.0:
+        CHK_NOGIL( ipp.ippiMulC_32f_C1IR(n_sigma, <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step, max_frame_size.sz))
 
     if BENCHMARK:
         t48 = time_time()
