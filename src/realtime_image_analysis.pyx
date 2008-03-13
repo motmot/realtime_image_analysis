@@ -411,7 +411,7 @@ cdef class RealtimeAnalyzer:
             c_python.Py_END_ALLOW_THREADS
 
             if found_point:
-                if not (n_found_points+1==self.max_num_points): # only modify the image if more follow...
+                if not (n_found_points+1>=self.max_num_points): # only modify the image if more follow...
                     self.absdiff_im_roi2_view.set_val(0, roi2_sz )
 
             if not found_point:
