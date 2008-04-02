@@ -1,5 +1,11 @@
 import numpy
 
+def showmat(name, localsdict):
+    if localsdict.get('debug',0):
+        print name
+        print localsdict[name]
+        print
+
 def do_bg_maint( running_mean_im,
                  hw_roi_frame,
                  max_frame_size,
@@ -15,7 +21,8 @@ def do_bg_maint( running_mean_im,
                  bright_non_gaussian_cutoff,
                  noisy_pixels_mask,
                  bright_non_gaussian_replacement,
-                 bench=0):
+                 bench=0,
+                 debug=0):
     """
     = Arguments =
 
@@ -54,6 +61,7 @@ def do_bg_maint( running_mean_im,
     # maintain running average
     # <x>
     running_mean_im[:,:] = (1-ALPHA)*running_mean_im + ALPHA*hw_roi_frame
+    showmat('running_mean_im',locals())
 
     running_mean8u_im[:,:] = numpy.round(running_mean_im)
 
@@ -65,23 +73,30 @@ def do_bg_maint( running_mean_im,
 
     # <x^2>
     running_sumsqf[:,:] = (1-ALPHA)*running_sumsqf + ALPHA*fastframef32_tmp
+    showmat('running_sumsqf',locals())
 
     ### GETS SLOWER
     # <x>^2
     mean2[:,:] = running_mean_im**2
+    showmat('mean2',locals())
 
     # <x^2> - <x>^2
     std2[:,:] = running_sumsqf - mean2
+    showmat('std2',locals())
 
     # sqrt( |<x^2> - <x>^2| )
     # clip
     running_stdframe[:,:] = abs(std2)
+    showmat('running_stdframe',locals())
     running_stdframe[:,:] = numpy.sqrt( running_stdframe )
+    showmat('running_stdframe',locals())
 
     # now create frame for comparison
     if n_sigma != 1.0:
         running_stdframe[:,:] = n_sigma*running_stdframe
+    showmat('running_stdframe',locals())
 
     # XXX TODO: currently this ignores mask and non_gaussian stuff
     compareframe8u[:,:] = running_stdframe.round()
+    showmat('compareframe8u',locals())
 
