@@ -55,7 +55,7 @@ def do_bg_maint( running_mean_im,
     # <x>
     running_mean_im[:,:] = (1-ALPHA)*running_mean_im + ALPHA*hw_roi_frame
 
-    running_mean8u_im[:,:] = running_mean_im.astype( numpy.uint8 )
+    running_mean8u_im[:,:] = numpy.round(running_mean_im)
 
     # standard deviation calculation
     fastframef32_tmp[:,:] = hw_roi_frame
