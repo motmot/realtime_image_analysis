@@ -75,7 +75,6 @@ def do_bg_maint( running_mean_im,
     running_sumsqf[:,:] = (1-ALPHA)*running_sumsqf + ALPHA*fastframef32_tmp
     showmat('running_sumsqf',locals())
 
-    ### GETS SLOWER
     # <x>^2
     mean2[:,:] = running_mean_im**2
     showmat('mean2',locals())
@@ -87,9 +86,11 @@ def do_bg_maint( running_mean_im,
     # sqrt( |<x^2> - <x>^2| )
     # clip
     running_stdframe[:,:] = abs(std2)
-    showmat('running_stdframe',locals())
+    #showmat('running_stdframe',locals())
     running_stdframe[:,:] = numpy.sqrt( running_stdframe )
     showmat('running_stdframe',locals())
+
+    real_std_est = numpy.array(running_stdframe,copy=True)
 
     # now create frame for comparison
     if n_sigma != 1.0:
@@ -99,4 +100,6 @@ def do_bg_maint( running_mean_im,
     # XXX TODO: currently this ignores mask and non_gaussian stuff
     compareframe8u[:,:] = running_stdframe.round()
     showmat('compareframe8u',locals())
+
+    return real_std_est
 
