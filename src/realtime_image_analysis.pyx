@@ -152,6 +152,8 @@ cdef class RealtimeAnalyzer:
 
         self.mean_im=FastImage.FastImage8u(sz)
         self.cmp_im=FastImage.FastImage8u(sz)
+        self.cmp_im.set_val(0,sz)
+
         self.cmpdiff_im=FastImage.FastImage8u(sz)
 
         # create and update self.imname2im dict
