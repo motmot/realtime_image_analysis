@@ -181,7 +181,7 @@ cdef class RealtimeAnalyzer:
                 int use_roi2,
                 int use_cmp=0,
                 double max_duration_sec=0.0,
-                int return_max_diff_values=0
+                int return_debug_values=0
                 ):
         """find location and orientation of local points (fast enough for realtime use)
 
@@ -214,8 +214,9 @@ cdef class RealtimeAnalyzer:
 
         cdef int index_x,index_y
 
+        cdef ipp.Ipp8u cur_val, mean_val, nstd_val
         cdef ipp.Ipp8u max_abs_diff
-        cdef ipp.Ipp8u* max_abs_diff_ptr
+        cdef ipp.Ipp8u* im_loc_ptr
         cdef ipp.Ipp8u max_std_diff
 
         cdef ipp.Ipp8u clear_despeckle_thresh
@@ -306,13 +307,27 @@ cdef class RealtimeAnalyzer:
                 CHK_NOGIL( ipp.ippiMaxIndx_8u_C1R(
                     <ipp.Ipp8u*>self.cmpdiff_im_roi_view.im,self.cmpdiff_im_roi_view.step,
                     self._roi_sz.sz, &max_std_diff, &index_x, &index_y))
-                max_abs_diff_ptr = (<ipp.Ipp8u*>self.absdiff_im_roi_view.im)+self.absdiff_im_roi_view.step*index_y+index_x
-                max_abs_diff = max_abs_diff_ptr[0] # value at maximum difference from std
+
+                im_loc_ptr = (<ipp.Ipp8u*>self.absdiff_im_roi_view.im)+self.absdiff_im_roi_view.step*index_y+index_x
+                max_abs_diff = im_loc_ptr[0] # value at maximum difference from std
+                if return_debug_values:
+                    im_loc_ptr = (<ipp.Ipp8u*>raw_im_small.im)+raw_im_small.step*index_y+index_x
+                    cur_val = im_loc_ptr[0] # value of raw image
+
+                    im_loc_ptr = (<ipp.Ipp8u*>self.mean_im_roi_view.im)+self.mean_im_roi_view.step*index_y+index_x
+                    mean_val = im_loc_ptr[0] # value of mean image
+
+                    im_loc_ptr = (<ipp.Ipp8u*>self.cmp_im_roi_view.im)+self.cmp_im_roi_view.step*index_y+index_x
+                    nstd_val = im_loc_ptr[0] # value of n_sigma*running_std image
             else:
                 max_std_diff=0
                 CHK_NOGIL( ipp.ippiMaxIndx_8u_C1R(
                     <ipp.Ipp8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
                     self._roi_sz.sz, &max_abs_diff, &index_x, &index_y))
+                if return_debug_values:
+                    cur_val = 0
+                    mean_val = 0
+                    nstd_val = 0
 
             if use_roi2:
                 # find mini-ROI for further analysis (defined in non-ROI space)
@@ -421,8 +436,8 @@ cdef class RealtimeAnalyzer:
             if not found_point:
                 break
 
-            if return_max_abs_diff:
-                pt_tuple = (x0_abs, y0_abs, area, slope, eccentricity, max_abs_diff, max_std_diff)
+            if return_debug_values:
+                pt_tuple = (x0_abs, y0_abs, area, slope, eccentricity, cur_val, mean_val, nstd_val)
             else:
                 pt_tuple = (x0_abs, y0_abs, area, slope, eccentricity)
 
