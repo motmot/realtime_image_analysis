@@ -181,7 +181,7 @@ cdef class RealtimeAnalyzer:
                 int use_roi2,
                 int use_cmp=0,
                 double max_duration_sec=0.0,
-                int return_max_abs_diff=0
+                int return_max_diff_values=0
                 ):
         """find location and orientation of local points (fast enough for realtime use)
 
@@ -309,6 +309,7 @@ cdef class RealtimeAnalyzer:
                 max_abs_diff_ptr = (<ipp.Ipp8u*>self.absdiff_im_roi_view.im)+self.absdiff_im_roi_view.step*index_y+index_x
                 max_abs_diff = max_abs_diff_ptr[0] # value at maximum difference from std
             else:
+                max_std_diff=0
                 CHK_NOGIL( ipp.ippiMaxIndx_8u_C1R(
                     <ipp.Ipp8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
                     self._roi_sz.sz, &max_abs_diff, &index_x, &index_y))
@@ -421,7 +422,7 @@ cdef class RealtimeAnalyzer:
                 break
 
             if return_max_abs_diff:
-                pt_tuple = (x0_abs, y0_abs, area, slope, eccentricity, max_abs_diff)
+                pt_tuple = (x0_abs, y0_abs, area, slope, eccentricity, max_abs_diff, max_std_diff)
             else:
                 pt_tuple = (x0_abs, y0_abs, area, slope, eccentricity)
 
