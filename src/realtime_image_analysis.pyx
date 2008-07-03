@@ -120,7 +120,7 @@ cdef class RealtimeAnalyzer:
     cdef object imname2im
     cdef int max_num_points
 
-    def __new__(self,*args,**kw):
+    def __cinit__(self,*args,**kw):
         # image moment calculation initialization
         CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &self.pState, ipp.ippAlgHintFast ) )
 
@@ -494,6 +494,59 @@ cdef class RealtimeAnalyzer:
             self.mean_im_roi_view = self.mean_im.roi(self._left,self._bottom,self._roi_sz)
             self.cmp_im_roi_view = self.cmp_im.roi(self._left,self._bottom,self._roi_sz)
             self.cmpdiff_im_roi_view = self.cmpdiff_im.roi(self._left,self._bottom,self._roi_sz)
+
+def fit_slope(FastImage.FastImage8u im):
+    cdef ipp.IppiMomentState_64f *pState
+    cdef double x0, y0
+    cdef double rise, run, slope, eccentricity
+    cdef double evalA, evalB
+    cdef double evecA1, evecB1
+
+    cdef double Mu00, Uu11, Uu02, Uu20
+    cdef int result, eigen_err
+
+    CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &pState, ipp.ippAlgHintFast ) )
+    try:
+        result = fit_params( pState, &x0, &y0,
+                             &Mu00,
+                             &Uu11, &Uu20, &Uu02,
+                             im.imsiz.sz.width, im.imsiz.sz.height,
+                             <unsigned char*>im.im,
+                             im.step)
+        # note that x0 and y0 are now relative to the ROI origin
+        if result == CFitParamsNoError:
+            area = Mu00
+            eigen_err = eigen_2x2_real( Uu20, Uu11,
+                                        Uu11, Uu02,
+                                        &evalA, &evecA1,
+                                        &evalB, &evecB1)
+            if eigen_err:
+                slope = nan
+                eccentricity = 0.0
+            else:
+                rise = 1.0 # 2nd component of eigenvectors will always be 1.0
+                if evalA > evalB:
+                    run = evecA1
+                    eccentricity = evalA/evalB
+                else:
+                    run = evecB1
+                    eccentricity = evalB/evalA
+                slope = rise/run
+
+        elif result == CFitParamsZeroMomentError:
+            x0 = nan
+            y0 = nan
+            x0_abs = nan
+            y0_abs = nan
+            found_point = 0
+        elif result == CFitParamsCentralMomentError:
+            slope = nan
+        else:
+            raise ValueError('unknown result (%d)'%result)
+    finally:
+        CHK_HAVEGIL( ipp.ippiMomentFree_64f( pState ))
+
+    return slope, eccentricity
 
 def bg_help_slow( FastImage.FastImage32f running_mean_im,
                   FastImage.FastImage32f fastframef32_tmp,
