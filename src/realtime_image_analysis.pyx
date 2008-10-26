@@ -95,15 +95,17 @@ cdef class FitParamsClass:
                                     &evalA, &evecA1,
                                     &evalB, &evecB1)
         if eigen_err:
-            raise RuntimeError('eigenvalue error %d'%eigen_err)
-        rise = 1.0 # 2nd component of eigenvectors will always be 1.0
-        if evalA > evalB:
-            run = evecA1
-            eccentricity = evalA/evalB
+            slope = nan
+            eccentricity = 0.0
         else:
-            run = evecB1
-            eccentricity = evalB/evalA
-        slope = rise/run
+            rise = 1.0 # 2nd component of eigenvectors will always be 1.0
+            if evalA > evalB:
+                run = evecA1
+                eccentricity = evalA/evalB
+            else:
+                run = evecB1
+                eccentricity = evalB/evalA
+            slope = rise/run
 
         return (x0, y0, area, slope, eccentricity)
 
