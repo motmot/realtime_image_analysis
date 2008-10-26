@@ -21,20 +21,11 @@ cimport c_lib
 cimport c_python
 
 cimport ipp
+cimport fit_params
 
 cdef extern from "unistd.h":
     ctypedef long intptr_t
 
-cdef extern from "c_fit_params.h":
-    ctypedef enum CFitParamsReturnType:
-        CFitParamsNoError
-        CFitParamsZeroMomentError
-        CFitParamsOtherError
-        CFitParamsCentralMomentError
-    CFitParamsReturnType fit_params( ipp.IppiMomentState_64f *pState, double *x0, double *y0,
-                                     double *Mu00,
-                                     double *Uu11, double *Uu20, double *Uu02,
-                                     int width, int height, unsigned char *img, int img_step )
 
 cdef extern from "eigen.h":
     int eigen_2x2_real( double A, double B, double C, double D,
@@ -70,6 +61,57 @@ cdef print_8u_arr(ipp.Ipp8u* src,int width,int height,int src_step):
       print "%d"%src_rowstart[col],
     print
   print
+
+cdef class FitParamsClass:
+    cdef ipp.IppiMomentState_64f *pState
+    def __cinit__(self,*args,**kw):
+        # image moment calculation initialization
+        print 'alloc pstate'
+        CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &self.pState, ipp.ippAlgHintFast ) )
+
+    def __dealloc__(self):
+        print 'dealloc pstate'
+        CHK_HAVEGIL( ipp.ippiMomentFree_64f( self.pState ))
+
+    def fit(self,FastImage.FastImage8u im):
+        cdef double x0, y0
+        cdef double Mu00, Uu11, Uu02, Uu20
+        cdef int result, eigen_err
+        cdef double area
+        cdef double rise, run, slope, eccentricity
+        cdef double evalA, evalB
+        cdef double evecA1, evecB1
+
+        result = fit_params.fit_params( self.pState, &x0, &y0,
+                                        &Mu00,
+                                        &Uu11, &Uu20, &Uu02,
+                                        im.imsiz.sz.width, im.imsiz.sz.height,
+                                        <unsigned char*>im.im,
+                                        im.step)
+        if result != fit_params.CFitParamsNoError:
+            raise RuntimeError('fit_params error %d'%result)
+
+        area = Mu00
+        eigen_err = eigen_2x2_real( Uu20, Uu11,
+                                    Uu11, Uu02,
+                                    &evalA, &evecA1,
+                                    &evalB, &evecB1)
+        if eigen_err:
+            raise RuntimeError('eigenvalue error %d'%eigen_err)
+        rise = 1.0 # 2nd component of eigenvectors will always be 1.0
+        if evalA > evalB:
+            run = evecA1
+            eccentricity = evalA/evalB
+        else:
+            run = evecB1
+            eccentricity = evalB/evalA
+        slope = rise/run
+
+        return (x0, y0, area, slope, eccentricity)
+
+def py_fit_params(FastImage.FastImage8u im):
+    cdef FitParamsClass fpc = FitParamsClass()
+    return fpc.fit(im)
 
 cdef class RealtimeAnalyzer:
 
@@ -372,14 +414,15 @@ cdef class RealtimeAnalyzer:
                     y0_abs = nan
                     found_point = 0 # c int (bool)
             if found_point:
-                result = fit_params( self.pState, &x0, &y0,
-                                     &Mu00,
-                                     &Uu11, &Uu20, &Uu02,
-                                     roi2_sz.sz.width, roi2_sz.sz.height,
-                                     <unsigned char*>self.absdiff_im_roi2_view.im,
-                                     self.absdiff_im_roi2_view.step)
+                result = fit_params.fit_params(
+                    self.pState, &x0, &y0,
+                    &Mu00,
+                    &Uu11, &Uu20, &Uu02,
+                    roi2_sz.sz.width, roi2_sz.sz.height,
+                    <unsigned char*>self.absdiff_im_roi2_view.im,
+                    self.absdiff_im_roi2_view.step)
                 # note that x0 and y0 are now relative to the ROI origin
-                if result == CFitParamsNoError:
+                if result == fit_params.CFitParamsNoError:
                     area = Mu00
                     eigen_err = eigen_2x2_real( Uu20, Uu11,
                                                 Uu11, Uu02,
@@ -398,13 +441,13 @@ cdef class RealtimeAnalyzer:
                             eccentricity = evalB/evalA
                         slope = rise/run
 
-                elif result == CFitParamsZeroMomentError:
+                elif result == fit_params.CFitParamsZeroMomentError:
                     x0 = nan
                     y0 = nan
                     x0_abs = nan
                     y0_abs = nan
                     found_point = 0
-                elif result == CFitParamsCentralMomentError:
+                elif result == fit_params.CFitParamsCentralMomentError:
                     slope = nan
                 else: SET_ERR(1)
 
@@ -507,14 +550,14 @@ def fit_slope(FastImage.FastImage8u im):
 
     CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &pState, ipp.ippAlgHintFast ) )
     try:
-        result = fit_params( pState, &x0, &y0,
-                             &Mu00,
-                             &Uu11, &Uu20, &Uu02,
-                             im.imsiz.sz.width, im.imsiz.sz.height,
-                             <unsigned char*>im.im,
-                             im.step)
+        result = fit_params.fit_params( pState, &x0, &y0,
+                                        &Mu00,
+                                        &Uu11, &Uu20, &Uu02,
+                                        im.imsiz.sz.width, im.imsiz.sz.height,
+                                        <unsigned char*>im.im,
+                                        im.step)
         # note that x0 and y0 are now relative to the ROI origin
-        if result == CFitParamsNoError:
+        if result == fit_params.CFitParamsNoError:
             area = Mu00
             eigen_err = eigen_2x2_real( Uu20, Uu11,
                                         Uu11, Uu02,
@@ -533,13 +576,13 @@ def fit_slope(FastImage.FastImage8u im):
                     eccentricity = evalB/evalA
                 slope = rise/run
 
-        elif result == CFitParamsZeroMomentError:
+        elif result == fit_params.CFitParamsZeroMomentError:
             x0 = nan
             y0 = nan
             x0_abs = nan
             y0_abs = nan
             found_point = 0
-        elif result == CFitParamsCentralMomentError:
+        elif result == fit_params.CFitParamsCentralMomentError:
             slope = nan
         else:
             raise ValueError('unknown result (%d)'%result)
