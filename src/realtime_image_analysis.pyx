@@ -66,11 +66,9 @@ cdef class FitParamsClass:
     cdef ipp.IppiMomentState_64f *pState
     def __cinit__(self,*args,**kw):
         # image moment calculation initialization
-        print 'alloc pstate'
         CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &self.pState, ipp.ippAlgHintFast ) )
 
     def __dealloc__(self):
-        print 'dealloc pstate'
         CHK_HAVEGIL( ipp.ippiMomentFree_64f( self.pState ))
 
     def fit(self,FastImage.FastImage8u im):
