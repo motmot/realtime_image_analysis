@@ -62,6 +62,9 @@ cdef print_8u_arr(ipp.Ipp8u* src,int width,int height,int src_step):
     print
   print
 
+class FitParamsError(Exception):
+    pass
+
 cdef class FitParamsClass:
     cdef ipp.IppiMomentState_64f *pState
     def __cinit__(self,*args,**kw):
@@ -87,7 +90,7 @@ cdef class FitParamsClass:
                                         <unsigned char*>im.im,
                                         im.step)
         if result != fit_params.CFitParamsNoError:
-            raise RuntimeError('fit_params error %d'%result)
+            raise FitParamsError('fit_params error %d'%result)
 
         area = Mu00
         eigen_err = eigen_2x2_real( Uu20, Uu11,
