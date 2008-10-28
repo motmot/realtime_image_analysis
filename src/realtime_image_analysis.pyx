@@ -26,6 +26,12 @@ cimport fit_params
 cdef extern from "unistd.h":
     ctypedef long intptr_t
 
+# Determining orientation from pixel covariance: See Bryan S. Morse's
+# lecture notes entitled "Lecture 9: Shape Description (Regions)" for
+# a description of central moments, shape descriptors, and finding
+# orientation from the eigenvector.
+#
+# A copy of this document may be found at: http://google.com/search?q=cache:G1yedMBlBJ0J:homepages.inf.ed.ac.uk/rbf/CVonline/LOCAL_COPIES/MORSE/region-props-and-moments.pdf+morse+"lecture+9:+shape+description"&hl=en&ct=clnk&cd=1&gl=us&client=firefox-a
 
 cdef extern from "eigen.h":
     int eigen_2x2_real( double A, double B, double C, double D,
@@ -91,6 +97,9 @@ cdef class FitParamsClass:
                                         im.step)
         if result != fit_params.CFitParamsNoError:
             raise FitParamsError('fit_params error %d'%result)
+
+        # See note at top of file about determining orientation from
+        # pixel covariance.
 
         area = Mu00
         eigen_err = eigen_2x2_real( Uu20, Uu11,
@@ -425,6 +434,10 @@ cdef class RealtimeAnalyzer:
                     <unsigned char*>self.absdiff_im_roi2_view.im,
                     self.absdiff_im_roi2_view.step)
                 # note that x0 and y0 are now relative to the ROI origin
+
+                # See note at top of file about determining
+                # orientation from pixel covariance.
+
                 if result == fit_params.CFitParamsNoError:
                     area = Mu00
                     eigen_err = eigen_2x2_real( Uu20, Uu11,
@@ -559,6 +572,10 @@ def fit_slope(FastImage.FastImage8u im):
                                         im.imsiz.sz.width, im.imsiz.sz.height,
                                         <unsigned char*>im.im,
                                         im.step)
+
+        # See note at top of file about determining orientation from
+        # pixel covariance.
+
         # note that x0 and y0 are now relative to the ROI origin
         if result == fit_params.CFitParamsNoError:
             area = Mu00
