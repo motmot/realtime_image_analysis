@@ -1,4 +1,4 @@
-cimport ipp
+cimport fw
 
 cdef extern from "c_fit_params.h":
     ctypedef enum CFitParamsReturnType:
@@ -6,7 +6,12 @@ cdef extern from "c_fit_params.h":
         CFitParamsZeroMomentError
         CFitParamsOtherError
         CFitParamsCentralMomentError
-    CFitParamsReturnType fit_params( ipp.IppiMomentState_64f *pState,
+    ctypedef int cFitParamsMomentState_64f
+
+    fw.FwStatus cFitParamsMomentInitAlloc_64f(cFitParamsMomentState_64f**)
+    fw.FwStatus cFitParamsMomentFree_64f( cFitParamsMomentState_64f* )
+
+    CFitParamsReturnType fit_params( cFitParamsMomentState_64f *pState,
                                      double *x0, double *y0,
                                      double *Mu00,
                                      double *Uu11, double *Uu20, double *Uu02,

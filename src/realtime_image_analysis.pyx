@@ -20,7 +20,8 @@ nan = nx.nan
 cimport c_lib
 cimport c_python
 
-cimport ipp
+cimport fic
+cimport fw
 cimport fit_params
 
 cdef extern from "unistd.h":
@@ -38,18 +39,19 @@ cdef extern from "eigen.h":
                         double *evalA, double *evecA1,
                         double *evalB, double *evecB1 )
 
-cdef extern from "motmot_ipp_macros.h":
-    ipp.Ipp8u*  IMPOS8u(  ipp.Ipp8u*  im, int step, int bottom, int left)
-    ipp.Ipp32f* IMPOS32f( ipp.Ipp32f* im, int step, int bottom, int left)
-    void CHK_NOGIL( ipp.IppStatus errval )
+cdef extern from "motmot_ria_macros.h":
+    fw.Fw8u*  IMPOS8u(  fw.Fw8u*  im, int step, int bottom, int left)
+    fw.Fw32f* IMPOS32f( fw.Fw32f* im, int step, int bottom, int left)
+    void CHK_NOGIL( fw.FwStatus errval )
+    void CHK_FIC_NOGIL( fic.FicStatus errval )
     void SET_ERR( int errval )
 
 cdef extern from "c_time_time.h":
     double time_time()
 
-cdef void CHK_HAVEGIL( ipp.IppStatus errval ) except *:
-    if (errval != ipp.ippStsNoErr):
-        raise FastImage.IppError(errval)
+cdef void CHK_HAVEGIL( fw.FwStatus errval ) except *:
+    if (errval != fw.fwStsNoErr):
+        raise FastImage.FwError(errval)
 
 ##cdef void SET_ERR( int errval ):
 ##    # This is rather crude at the moment because calls to the Python C
@@ -58,9 +60,9 @@ cdef void CHK_HAVEGIL( ipp.IppStatus errval ) except *:
 ##    c_lib.printf("SET_ERR(%d) called! (May not have GIL, cannot raise exception.)\n",errval)
 ##    c_lib.exit(2)
 
-cdef print_8u_arr(ipp.Ipp8u* src,int width,int height,int src_step):
+cdef print_8u_arr(fw.Fw8u* src,int width,int height,int src_step):
   cdef int row, col
-  cdef ipp.Ipp8u* src_rowstart
+  cdef fw.Fw8u* src_rowstart
   for row from 0 <= row < height:
     src_rowstart = src+(row*src_step);
     for col from 0 <= col < width:
@@ -72,13 +74,13 @@ class FitParamsError(Exception):
     pass
 
 cdef class FitParamsClass:
-    cdef ipp.IppiMomentState_64f *pState
+    cdef fit_params.cFitParamsMomentState_64f *pState
     def __cinit__(self,*args,**kw):
         # image moment calculation initialization
-        CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &self.pState, ipp.ippAlgHintFast ) )
+        CHK_HAVEGIL( fit_params.cFitParamsMomentInitAlloc_64f( &self.pState))
 
     def __dealloc__(self):
-        CHK_HAVEGIL( ipp.ippiMomentFree_64f( self.pState ))
+        CHK_HAVEGIL( fit_params.cFitParamsMomentFree_64f( self.pState ))
 
     def fit(self,FastImage.FastImage8u im):
         cdef double x0, y0
@@ -136,10 +138,10 @@ cdef class RealtimeAnalyzer:
     cdef int _roi2_radius
 
     # runtime parameters
-    cdef ipp.Ipp8u _diff_threshold
+    cdef fw.Fw8u _diff_threshold
     cdef float _clear_threshold
 
-    cdef ipp.Ipp8u _despeckle_threshold
+    cdef fw.Fw8u _despeckle_threshold
 
     cdef FastImage.Size _roi_sz
 
@@ -169,17 +171,17 @@ cdef class RealtimeAnalyzer:
     cdef FastImage.FastImage8u mean_im_roi_view, cmp_im_roi_view
 
     # other stuff
-    cdef ipp.IppiMomentState_64f *pState
+    cdef fit_params.cFitParamsMomentState_64f *pState
 
     cdef object imname2im
     cdef int max_num_points
 
     def __cinit__(self,*args,**kw):
         # image moment calculation initialization
-        CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &self.pState, ipp.ippAlgHintFast ) )
+        CHK_HAVEGIL( fit_params.cFitParamsMomentInitAlloc_64f( &self.pState ))
 
     def __dealloc__(self):
-        CHK_HAVEGIL( ipp.ippiMomentFree_64f( self.pState ))
+        CHK_HAVEGIL( fit_params.cFitParamsMomentFree_64f( self.pState ))
 
     def __init__(self,object lbrt,int maxwidth, int maxheight, int max_num_points, int roi2_radius):
         # software analysis ROI
@@ -268,12 +270,12 @@ cdef class RealtimeAnalyzer:
 
         cdef int index_x,index_y
 
-        cdef ipp.Ipp8u cur_val, mean_val, nstd_val
-        cdef ipp.Ipp8u max_abs_diff
-        cdef ipp.Ipp8u* im_loc_ptr
-        cdef ipp.Ipp8u max_std_diff
+        cdef fw.Fw8u cur_val, mean_val, nstd_val
+        cdef fw.Fw8u max_abs_diff
+        cdef fw.Fw8u* im_loc_ptr
+        cdef fw.Fw8u max_std_diff
 
-        cdef ipp.Ipp8u clear_despeckle_thresh
+        cdef fw.Fw8u clear_despeckle_thresh
 
         cdef FastImage.Size roi2_sz
         cdef int left2, right2, bottom2, top2
@@ -283,6 +285,7 @@ cdef class RealtimeAnalyzer:
 
         cdef double entry_time
         cdef double now
+        cdef fic.FiciSize fic_sz
 
         entry_time = time.time()
 
@@ -304,9 +307,9 @@ cdef class RealtimeAnalyzer:
         #raw_im_small.fast_get_absdiff_put( self.mean_im_roi_view,
         #                                   self.absdiff_im_roi_view,
         #                                   self._roi_sz) # does own CHK
-        CHK_NOGIL( ipp.ippiAbsDiff_8u_C1R(<ipp.Ipp8u*>self.mean_im_roi_view.im,self.mean_im_roi_view.step,
-                                          <ipp.Ipp8u*>raw_im_small.im,raw_im_small.step,
-                                          <ipp.Ipp8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
+        CHK_NOGIL( fw.fwiAbsDiff_8u_C1R(<fw.Fw8u*>self.mean_im_roi_view.im,self.mean_im_roi_view.step,
+                                          <fw.Fw8u*>raw_im_small.im,raw_im_small.step,
+                                          <fw.Fw8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
                                           self._roi_sz.sz))
 
         # mask unused part of absdiff_im to 0
@@ -314,15 +317,15 @@ cdef class RealtimeAnalyzer:
         #                                     self.mask_im,
         #                                     self.absdiff_im.imsiz) # does own CHK
 
-        CHK_NOGIL( ipp.ippiSet_8u_C1MR( 0, <ipp.Ipp8u*>self.absdiff_im.im, self.absdiff_im.step, self.absdiff_im.imsiz.sz,
-                                        <ipp.Ipp8u*>self.mask_im.im, self.mask_im.step))
+        CHK_NOGIL( fw.fwiSet_8u_C1MR( 0, <fw.Fw8u*>self.absdiff_im.im, self.absdiff_im.step, self.absdiff_im.imsiz.sz,
+                                        <fw.Fw8u*>self.mask_im.im, self.mask_im.step))
 
         if use_cmp:
             # clip the minimum comparison value to diff_threshold
-            CHK_NOGIL( ipp.ippiThreshold_Val_8u_C1IR(<ipp.Ipp8u*>self.cmp_im_roi_view.im,
+            CHK_NOGIL( fw.fwiThreshold_Val_8u_C1IR(<fw.Fw8u*>self.cmp_im_roi_view.im,
                                                self.cmp_im_roi_view.step,
                                                self._roi_sz.sz,
-                                               self._diff_threshold, self._diff_threshold, ipp.ippCmpLess))
+                                               self._diff_threshold, self._diff_threshold, fw.fwCmpLess))
         c_python.Py_END_ALLOW_THREADS
 
         while n_found_points < self.max_num_points:
@@ -354,21 +357,25 @@ cdef class RealtimeAnalyzer:
                 #self.absdiff_im_roi_view.fast_get_sub_put( self.cmp_im_roi_view,
                 #                                           self.cmpdiff_im_roi_view,
                 #                                           self._roi_sz ) # down own CHK
-                CHK_NOGIL( ipp.ippiSub_8u_C1RSfs(<ipp.Ipp8u*>self.cmp_im_roi_view.im, self.cmp_im_roi_view.step,
-                                                 <ipp.Ipp8u*>self.absdiff_im_roi_view.im, self.absdiff_im_roi_view.step,
-                                                 <ipp.Ipp8u*>self.cmpdiff_im_roi_view.im, self.cmpdiff_im_roi_view.step,
+                CHK_NOGIL( fw.fwiSub_8u_C1RSfs(<fw.Fw8u*>self.cmp_im_roi_view.im, self.cmp_im_roi_view.step,
+                                                 <fw.Fw8u*>self.absdiff_im_roi_view.im, self.absdiff_im_roi_view.step,
+                                                 <fw.Fw8u*>self.cmpdiff_im_roi_view.im, self.cmpdiff_im_roi_view.step,
                                                  self._roi_sz.sz,0))
-                CHK_NOGIL( ipp.ippiMaxIndx_8u_C1R(
-                    <ipp.Ipp8u*>self.cmpdiff_im_roi_view.im,self.cmpdiff_im_roi_view.step,
-                    self._roi_sz.sz, &max_std_diff, &index_x, &index_y))
+                fic_sz.width = self._roi_sz.sz.width;
+                fic_sz.height = self._roi_sz.sz.height;
+                CHK_FIC_NOGIL( fic.ficiMaxIndx_8u_C1R(
+                    <fic.Fic8u*>self.cmpdiff_im_roi_view.im,self.cmpdiff_im_roi_view.step,
+                    fic_sz, &max_std_diff, &index_x, &index_y))
 
-                im_loc_ptr = (<ipp.Ipp8u*>self.absdiff_im_roi_view.im)+self.absdiff_im_roi_view.step*index_y+index_x
+                im_loc_ptr = (<fw.Fw8u*>self.absdiff_im_roi_view.im)+self.absdiff_im_roi_view.step*index_y+index_x
                 max_abs_diff = im_loc_ptr[0] # value at maximum difference from std
             else:
                 max_std_diff=0
-                CHK_NOGIL( ipp.ippiMaxIndx_8u_C1R(
-                    <ipp.Ipp8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
-                    self._roi_sz.sz, &max_abs_diff, &index_x, &index_y))
+                fic_sz.width = self._roi_sz.sz.width;
+                fic_sz.height = self._roi_sz.sz.height;
+                CHK_FIC_NOGIL( fic.ficiMaxIndx_8u_C1R(
+                    <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
+                    fic_sz, &max_abs_diff, &index_x, &index_y))
 
             if use_roi2:
                 # find mini-ROI for further analysis (defined in non-ROI space)
@@ -400,13 +407,13 @@ cdef class RealtimeAnalyzer:
 
             # (to reduce moment arm:) if pixel < self._clear_threshold*max(pixel): pixel=0
 
-            clear_despeckle_thresh = <ipp.Ipp8u>(self._clear_threshold*max_abs_diff)
+            clear_despeckle_thresh = <fw.Fw8u>(self._clear_threshold*max_abs_diff)
             if clear_despeckle_thresh < self._despeckle_threshold:
                 clear_despeckle_thresh = self._despeckle_threshold
 
-            CHK_NOGIL( ipp.ippiThreshold_Val_8u_C1IR(
-                <ipp.Ipp8u*>self.absdiff_im_roi2_view.im,self.absdiff_im_roi2_view.step,
-                roi2_sz.sz, clear_despeckle_thresh, 0, ipp.ippCmpLess))
+            CHK_NOGIL( fw.fwiThreshold_Val_8u_C1IR(
+                <fw.Fw8u*>self.absdiff_im_roi2_view.im,self.absdiff_im_roi2_view.step,
+                roi2_sz.sz, clear_despeckle_thresh, 0, fw.fwCmpLess))
 
             found_point = 1
 
@@ -555,7 +562,7 @@ cdef class RealtimeAnalyzer:
             self.cmpdiff_im_roi_view = self.cmpdiff_im.roi(self._left,self._bottom,self._roi_sz)
 
 def fit_slope(FastImage.FastImage8u im):
-    cdef ipp.IppiMomentState_64f *pState
+    cdef fit_params.cFitParamsMomentState_64f *pState
     cdef double x0, y0
     cdef double rise, run, slope, eccentricity
     cdef double evalA, evalB
@@ -564,7 +571,7 @@ def fit_slope(FastImage.FastImage8u im):
     cdef double Mu00, Uu11, Uu02, Uu20
     cdef int result, eigen_err
 
-    CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &pState, ipp.ippAlgHintFast ) )
+    CHK_HAVEGIL( fit_params.cFitParamsMomentInitAlloc_64f( &pState ))
     try:
         result = fit_params.fit_params( pState, &x0, &y0,
                                         &Mu00,
@@ -607,7 +614,7 @@ def fit_slope(FastImage.FastImage8u im):
         else:
             raise ValueError('unknown result (%d)'%result)
     finally:
-        CHK_HAVEGIL( ipp.ippiMomentFree_64f( pState ))
+        CHK_HAVEGIL( fit_params.cFitParamsMomentFree_64f( pState ))
 
     return slope, eccentricity
 
@@ -661,62 +668,62 @@ def bg_help( FastImage.FastImage32f running_mean_im,
     c_python.Py_BEGIN_ALLOW_THREADS # release GIL
     # maintain running average
     #running_mean_im.fast_toself_add_weighted_8u( hw_roi_frame, max_frame_size, ALPHA ) # done
-    CHK_NOGIL( ipp.ippiAddWeighted_8u32f_C1IR( <ipp.Ipp8u*>hw_roi_frame.im, hw_roi_frame.step,
-                                               <ipp.Ipp32f*>running_mean_im.im, running_mean_im.step,
+    CHK_NOGIL( fw.fwiAddWeighted_8u32f_C1IR( <fw.Fw8u*>hw_roi_frame.im, hw_roi_frame.step,
+                                               <fw.Fw32f*>running_mean_im.im, running_mean_im.step,
                                                max_frame_size.sz, ALPHA))
 
     # maintain 8bit unsigned background image
     #running_mean_im.fast_get_8u_copy_put( running_mean8u_im, max_frame_size ) # done
-    CHK_NOGIL( ipp.ippiConvert_32f8u_C1R(
-        <ipp.Ipp32f*>running_mean_im.im,running_mean_im.step,
-        <ipp.Ipp8u*>running_mean8u_im.im,running_mean8u_im.step,
-        max_frame_size.sz, ipp.ippRndNear ))
+    CHK_NOGIL( fw.fwiConvert_32f8u_C1R(
+        <fw.Fw32f*>running_mean_im.im,running_mean_im.step,
+        <fw.Fw8u*>running_mean8u_im.im,running_mean8u_im.step,
+        max_frame_size.sz))
 
     # standard deviation calculation
     #hw_roi_frame.fast_get_32f_copy_put(fastframef32_tmp,max_frame_size) # done
-    CHK_NOGIL( ipp.ippiConvert_8u32f_C1R(<ipp.Ipp8u*>hw_roi_frame.im, hw_roi_frame.step,
-                                         <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
+    CHK_NOGIL( fw.fwiConvert_8u32f_C1R(<fw.Fw8u*>hw_roi_frame.im, hw_roi_frame.step,
+                                         <fw.Fw32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                          max_frame_size.sz ))
 
     #fastframef32_tmp.fast_toself_square(max_frame_size) # current**2 # done
-    CHK_NOGIL( ipp.ippiSqr_32f_C1IR( <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
+    CHK_NOGIL( fw.fwiSqr_32f_C1IR( <fw.Fw32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                      max_frame_size.sz))
 
     #running_sumsqf.fast_toself_add_weighted_32f( fastframef32_tmp, max_frame_size, ALPHA) # done
-    CHK_NOGIL( ipp.ippiAddWeighted_32f_C1IR( <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
-                                             <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
+    CHK_NOGIL( fw.fwiAddWeighted_32f_C1IR( <fw.Fw32f*>fastframef32_tmp.im, fastframef32_tmp.step,
+                                             <fw.Fw32f*>running_sumsqf.im, running_sumsqf.step,
                                              max_frame_size.sz, ALPHA))
     #running_mean_im.fast_get_square_put(mean2,max_frame_size) # done
-    CHK_NOGIL( ipp.ippiSqr_32f_C1R( <ipp.Ipp32f*>running_mean_im.im, running_mean_im.step,
-                                    <ipp.Ipp32f*>mean2.im, mean2.step,
+    CHK_NOGIL( fw.fwiSqr_32f_C1R( <fw.Fw32f*>running_mean_im.im, running_mean_im.step,
+                                    <fw.Fw32f*>mean2.im, mean2.step,
                                     max_frame_size.sz))
     #running_sumsqf.fast_get_subtracted_put(mean2,running_stdframe,max_frame_size) # done
-    CHK_NOGIL( ipp.ippiSub_32f_C1R(<ipp.Ipp32f*>mean2.im, mean2.step,
-                                   <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
-                                   <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step,
+    CHK_NOGIL( fw.fwiSub_32f_C1R(<fw.Fw32f*>mean2.im, mean2.step,
+                                   <fw.Fw32f*>running_sumsqf.im, running_sumsqf.step,
+                                   <fw.Fw32f*>running_stdframe.im, running_stdframe.step,
                                    max_frame_size.sz))
 
     # now create frame for comparison
     #running_stdframe.fast_toself_multiply(C,max_frame_size) # done
-    CHK_NOGIL( ipp.ippiMulC_32f_C1IR(C, <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step, max_frame_size.sz))
+    CHK_NOGIL( fw.fwiMulC_32f_C1IR(C, <fw.Fw32f*>running_stdframe.im, running_stdframe.step, max_frame_size.sz))
 
     #running_stdframe.fast_get_8u_copy_put(compareframe8u,max_frame_size) # done
-    CHK_NOGIL( ipp.ippiConvert_32f8u_C1R(
-        <ipp.Ipp32f*>running_stdframe.im,running_stdframe.step,
-        <ipp.Ipp8u*>compareframe8u.im,compareframe8u.step,
-        max_frame_size.sz, ipp.ippRndNear ))
+    CHK_NOGIL( fw.fwiConvert_32f8u_C1R(
+        <fw.Fw32f*>running_stdframe.im,running_stdframe.step,
+        <fw.Fw8u*>compareframe8u.im,compareframe8u.step,
+        max_frame_size.sz))
 
     # now we do hack, erm, heuristic for bright points, which aren't gaussian.
     #running_mean8u_im.fast_get_compare_int_put_greater( 200, noisy_pixels_mask, max_frame_size)
-    CHK_NOGIL( ipp.ippiCompareC_8u_C1R( <ipp.Ipp8u*>running_mean8u_im.im,running_mean8u_im.step,
+    CHK_NOGIL( fw.fwiCompareC_8u_C1R( <fw.Fw8u*>running_mean8u_im.im,running_mean8u_im.step,
                                         200,
-                                        <ipp.Ipp8u*>noisy_pixels_mask.im,noisy_pixels_mask.step,
+                                        <fw.Fw8u*>noisy_pixels_mask.im,noisy_pixels_mask.step,
                                         max_frame_size.sz,
-                                        ipp.ippCmpGreater))
+                                        fw.fwCmpGreater))
 
     #compareframe8u.fast_set_val_masked(25, noisy_pixels_mask, max_frame_size) # done
-    CHK_NOGIL( ipp.ippiSet_8u_C1MR( 25, <ipp.Ipp8u*>compareframe8u.im, compareframe8u.step, max_frame_size.sz,
-                                    <ipp.Ipp8u*>noisy_pixels_mask.im, noisy_pixels_mask.step))
+    CHK_NOGIL( fw.fwiSet_8u_C1MR( 25, <fw.Fw8u*>compareframe8u.im, compareframe8u.step, max_frame_size.sz,
+                                    <fw.Fw8u*>noisy_pixels_mask.im, noisy_pixels_mask.step))
     c_python.Py_END_ALLOW_THREADS # acquire GIL
 
 def do_bg_maint( FastImage.FastImage32f running_mean_im,
@@ -760,8 +767,8 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
 
     """
     cdef int BENCHMARK
-    cdef int RAW_IPP
-    cdef ipp.IppStatus errval
+    cdef int RAW_FW
+    cdef fw.FwStatus errval
 
     BENCHMARK = bench
     cdef double t41, t42, t43, t44, t45, t46, t47, t48, t49, t491, t492
@@ -770,62 +777,62 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
 
     # maintain running average
     # <x>
-    CHK_NOGIL( ipp.ippiAddWeighted_8u32f_C1IR( <ipp.Ipp8u*>hw_roi_frame.im, hw_roi_frame.step,
-                                               <ipp.Ipp32f*>running_mean_im.im, running_mean_im.step,
+    CHK_NOGIL( fw.fwiAddWeighted_8u32f_C1IR( <fw.Fw8u*>hw_roi_frame.im, hw_roi_frame.step,
+                                               <fw.Fw32f*>running_mean_im.im, running_mean_im.step,
                                                max_frame_size.sz, ALPHA))
     if BENCHMARK:
         t41 = time_time()
 
-    CHK_NOGIL( ipp.ippiConvert_32f8u_C1R(
-        <ipp.Ipp32f*>running_mean_im.im,running_mean_im.step,
-        <ipp.Ipp8u*>running_mean8u_im.im,running_mean8u_im.step,
-        max_frame_size.sz, ipp.ippRndNear ))
+    CHK_NOGIL( fw.fwiConvert_32f8u_C1R(
+        <fw.Fw32f*>running_mean_im.im,running_mean_im.step,
+        <fw.Fw8u*>running_mean8u_im.im,running_mean8u_im.step,
+        max_frame_size.sz))
 
     if BENCHMARK:
         t42 = time_time()
 
     # standard deviation calculation
-    CHK_NOGIL( ipp.ippiConvert_8u32f_C1R(<ipp.Ipp8u*>hw_roi_frame.im, hw_roi_frame.step,
-                                         <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
+    CHK_NOGIL( fw.fwiConvert_8u32f_C1R(<fw.Fw8u*>hw_roi_frame.im, hw_roi_frame.step,
+                                         <fw.Fw32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                          max_frame_size.sz ))
     if BENCHMARK:
         t43 = time_time()
 
     # x^2
-    CHK_NOGIL( ipp.ippiSqr_32f_C1IR( <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
+    CHK_NOGIL( fw.fwiSqr_32f_C1IR( <fw.Fw32f*>fastframef32_tmp.im, fastframef32_tmp.step,
                                      max_frame_size.sz))
     if BENCHMARK:
         t44 = time_time()
 
     # <x^2>
-    CHK_NOGIL( ipp.ippiAddWeighted_32f_C1IR( <ipp.Ipp32f*>fastframef32_tmp.im, fastframef32_tmp.step,
-                                             <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
+    CHK_NOGIL( fw.fwiAddWeighted_32f_C1IR( <fw.Fw32f*>fastframef32_tmp.im, fastframef32_tmp.step,
+                                             <fw.Fw32f*>running_sumsqf.im, running_sumsqf.step,
                                              max_frame_size.sz, ALPHA))
     if BENCHMARK:
         t45 = time_time()
 
     ### GETS SLOWER
     # <x>^2
-    CHK_NOGIL( ipp.ippiSqr_32f_C1R( <ipp.Ipp32f*>running_mean_im.im, running_mean_im.step,
-                                    <ipp.Ipp32f*>mean2.im, mean2.step,
+    CHK_NOGIL( fw.fwiSqr_32f_C1R( <fw.Fw32f*>running_mean_im.im, running_mean_im.step,
+                                    <fw.Fw32f*>mean2.im, mean2.step,
                                     max_frame_size.sz))
     if BENCHMARK:
         t46 = time_time()
 
     # <x^2> - <x>^2
-    CHK_NOGIL( ipp.ippiSub_32f_C1R(<ipp.Ipp32f*>mean2.im, mean2.step,
-                                   <ipp.Ipp32f*>running_sumsqf.im, running_sumsqf.step,
-                                   <ipp.Ipp32f*>std2.im, std2.step,
+    CHK_NOGIL( fw.fwiSub_32f_C1R(<fw.Fw32f*>mean2.im, mean2.step,
+                                   <fw.Fw32f*>running_sumsqf.im, running_sumsqf.step,
+                                   <fw.Fw32f*>std2.im, std2.step,
                                    max_frame_size.sz))
 
     # sqrt( |<x^2> - <x>^2| )
     # clip
     # XXX should use copy version
-    CHK_NOGIL( ipp.ippiAbs_32f_C1R(<ipp.Ipp32f*>std2.im, std2.step,
-                                   <ipp.Ipp32f*>running_stdframe.im,
+    CHK_NOGIL( fw.fwiAbs_32f_C1R(<fw.Fw32f*>std2.im, std2.step,
+                                   <fw.Fw32f*>running_stdframe.im,
                                    running_stdframe.step,
                                    max_frame_size.sz))
-    errval= ipp.ippiSqrt_32f_C1IR(<ipp.Ipp32f*>running_stdframe.im,
+    errval= fw.fwiSqrt_32f_C1IR(<fw.Fw32f*>running_stdframe.im,
                                   running_stdframe.step,
                                   max_frame_size.sz)
     CHK_NOGIL(errval)
@@ -835,31 +842,31 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
 
     # now create frame for comparison
     if n_sigma != 1.0:
-        CHK_NOGIL( ipp.ippiMulC_32f_C1IR(n_sigma, <ipp.Ipp32f*>running_stdframe.im, running_stdframe.step, max_frame_size.sz))
+        CHK_NOGIL( fw.fwiMulC_32f_C1IR(n_sigma, <fw.Fw32f*>running_stdframe.im, running_stdframe.step, max_frame_size.sz))
 
     if BENCHMARK:
         t48 = time_time()
 
-    CHK_NOGIL( ipp.ippiConvert_32f8u_C1R(
-        <ipp.Ipp32f*>running_stdframe.im,running_stdframe.step,
-        <ipp.Ipp8u*>compareframe8u.im,compareframe8u.step,
-        max_frame_size.sz, ipp.ippRndNear ))
+    CHK_NOGIL( fw.fwiConvert_32f8u_C1R(
+        <fw.Fw32f*>running_stdframe.im,running_stdframe.step,
+        <fw.Fw8u*>compareframe8u.im,compareframe8u.step,
+        max_frame_size.sz))
 
     if BENCHMARK:
         t49 = time_time()
 
     # now we do hack, erm, heuristic for bright points, which aren't gaussian.
-    CHK_NOGIL( ipp.ippiCompareC_8u_C1R( <ipp.Ipp8u*>running_mean8u_im.im,running_mean8u_im.step,
+    CHK_NOGIL( fw.fwiCompareC_8u_C1R( <fw.Fw8u*>running_mean8u_im.im,running_mean8u_im.step,
                                         bright_non_gaussian_cutoff,
-                                        <ipp.Ipp8u*>noisy_pixels_mask.im,noisy_pixels_mask.step,
-                                        max_frame_size.sz,ipp.ippCmpGreater))
+                                        <fw.Fw8u*>noisy_pixels_mask.im,noisy_pixels_mask.step,
+                                        max_frame_size.sz,fw.fwCmpGreater))
 
     if BENCHMARK:
         t491 = time_time()
 
-    CHK_NOGIL( ipp.ippiSet_8u_C1MR( bright_non_gaussian_replacement,
-                                    <ipp.Ipp8u*>compareframe8u.im, compareframe8u.step, max_frame_size.sz,
-                                    <ipp.Ipp8u*>noisy_pixels_mask.im, noisy_pixels_mask.step))
+    CHK_NOGIL( fw.fwiSet_8u_C1MR( bright_non_gaussian_replacement,
+                                    <fw.Fw8u*>compareframe8u.im, compareframe8u.step, max_frame_size.sz,
+                                    <fw.Fw8u*>noisy_pixels_mask.im, noisy_pixels_mask.step))
     if BENCHMARK:
         t492 = time_time()
 
