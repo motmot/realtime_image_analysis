@@ -1,1 +1,4 @@
-../../FastImage/src/fi_fw.h
+#include <stdint.h>
+
+#include <fwBase.h>
+#include <fwImage.h>
