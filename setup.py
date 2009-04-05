@@ -27,7 +27,7 @@ setup(name='motmot.realtime_image_analysis',
 realtime trackers: 2D only trackers with no consideration of camera
 calibration and potentially-3D trackers with camera calibration and
 distortion information.""",
-      version='0.5.4',
+      version='0.5.4+svn',
       author="Andrew Straw",
       author_email="strawman@astraw.com",
       url='http://code.astraw.com/projects/motmot',
@@ -35,5 +35,4 @@ distortion information.""",
       namespace_packages = ['motmot'],
       packages = find_packages(),
       ext_modules= ext_modules,
-      zip_safe = True,
       )
