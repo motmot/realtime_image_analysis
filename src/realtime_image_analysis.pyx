@@ -558,49 +558,46 @@ def fit_slope(FastImage.FastImage8u im):
     cdef double Mu00, Uu11, Uu02, Uu20
     cdef int result, eigen_err
 
-    try:
-        result = fit_params.fit_params( &pState, &x0, &y0,
-                                        &Mu00,
-                                        &Uu11, &Uu20, &Uu02,
-                                        im.imsiz.sz.width, im.imsiz.sz.height,
-                                        <unsigned char*>im.im,
-                                        im.step)
+    result = fit_params.fit_params( &pState, &x0, &y0,
+                                    &Mu00,
+                                    &Uu11, &Uu20, &Uu02,
+                                    im.imsiz.sz.width, im.imsiz.sz.height,
+                                    <unsigned char*>im.im,
+                                    im.step)
 
-        # See note at top of file about determining orientation from
-        # pixel covariance.
+    # See note at top of file about determining orientation from
+    # pixel covariance.
 
-        # note that x0 and y0 are now relative to the ROI origin
-        if result == fit_params.CFitParamsNoError:
-            area = Mu00
-            eigen_err = eigen_2x2_real( Uu20, Uu11,
-                                        Uu11, Uu02,
-                                        &evalA, &evecA1,
-                                        &evalB, &evecB1)
-            if eigen_err:
-                slope = nan
-                eccentricity = 0.0
-            else:
-                rise = 1.0 # 2nd component of eigenvectors will always be 1.0
-                if evalA > evalB:
-                    run = evecA1
-                    eccentricity = evalA/evalB
-                else:
-                    run = evecB1
-                    eccentricity = evalB/evalA
-                slope = rise/run
-
-        elif result == fit_params.CFitParamsZeroMomentError:
-            x0 = nan
-            y0 = nan
-            x0_abs = nan
-            y0_abs = nan
-            found_point = 0
-        elif result == fit_params.CFitParamsCentralMomentError:
+    # note that x0 and y0 are now relative to the ROI origin
+    if result == fit_params.CFitParamsNoError:
+        area = Mu00
+        eigen_err = eigen_2x2_real( Uu20, Uu11,
+                                    Uu11, Uu02,
+                                    &evalA, &evecA1,
+                                    &evalB, &evecB1)
+        if eigen_err:
             slope = nan
+            eccentricity = 0.0
         else:
-            raise ValueError('unknown result (%d)'%result)
-    finally:
-        pass
+            rise = 1.0 # 2nd component of eigenvectors will always be 1.0
+            if evalA > evalB:
+                run = evecA1
+                eccentricity = evalA/evalB
+            else:
+                run = evecB1
+                eccentricity = evalB/evalA
+            slope = rise/run
+
+    elif result == fit_params.CFitParamsZeroMomentError:
+        x0 = nan
+        y0 = nan
+        x0_abs = nan
+        y0_abs = nan
+        found_point = 0
+    elif result == fit_params.CFitParamsCentralMomentError:
+        slope = nan
+    else:
+        raise ValueError('unknown result (%d)'%result)
 
     return slope, eccentricity
 
