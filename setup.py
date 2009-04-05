@@ -13,11 +13,10 @@ if 1:
                                      'src/eigen.c',
                                      'src/c_time_time.c',
                                      'src/fic.c',
-                                     'src/moments.c',
                                      ]
     ext_modules.append(Extension(name='motmot.realtime_image_analysis.realtime_image_analysis',
                                  sources=realtime_image_analysis_sources,
-                                 libraries=['fwBase','fwImage'],
+                                 libraries=['fwBase','fwImage','cv'],
                                  ))
 
 setup(name='motmot.realtime_image_analysis',

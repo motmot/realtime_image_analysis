@@ -23,6 +23,7 @@ cimport c_python
 cimport fic
 cimport fw
 cimport fit_params
+cimport opencv
 
 cdef extern from "unistd.h":
     ctypedef long intptr_t
@@ -74,14 +75,7 @@ class FitParamsError(Exception):
     pass
 
 cdef class FitParamsClass:
-    cdef fit_params.cFitParamsMomentState_64f *pState
-    def __cinit__(self,*args,**kw):
-        # image moment calculation initialization
-        CHK_HAVEGIL( fit_params.cFitParamsMomentInitAlloc_64f( &self.pState))
-
-    def __dealloc__(self):
-        CHK_HAVEGIL( fit_params.cFitParamsMomentFree_64f( self.pState ))
-
+    cdef opencv.CvMoments pState
     def fit(self,FastImage.FastImage8u im):
         cdef double x0, y0
         cdef double Mu00, Uu11, Uu02, Uu20
@@ -91,7 +85,7 @@ cdef class FitParamsClass:
         cdef double evalA, evalB
         cdef double evecA1, evecB1
 
-        result = fit_params.fit_params( self.pState, &x0, &y0,
+        result = fit_params.fit_params( &self.pState, &x0, &y0,
                                         &Mu00,
                                         &Uu11, &Uu20, &Uu02,
                                         im.imsiz.sz.width, im.imsiz.sz.height,
@@ -171,17 +165,10 @@ cdef class RealtimeAnalyzer:
     cdef FastImage.FastImage8u mean_im_roi_view, cmp_im_roi_view
 
     # other stuff
-    cdef fit_params.cFitParamsMomentState_64f *pState
+    cdef opencv.CvMoments pState
 
     cdef object imname2im
     cdef int max_num_points
-
-    def __cinit__(self,*args,**kw):
-        # image moment calculation initialization
-        CHK_HAVEGIL( fit_params.cFitParamsMomentInitAlloc_64f( &self.pState ))
-
-    def __dealloc__(self):
-        CHK_HAVEGIL( fit_params.cFitParamsMomentFree_64f( self.pState ))
 
     def __init__(self,object lbrt,int maxwidth, int maxheight, int max_num_points, int roi2_radius):
         # software analysis ROI
@@ -434,7 +421,7 @@ cdef class RealtimeAnalyzer:
                     found_point = 0 # c int (bool)
             if found_point:
                 result = fit_params.fit_params(
-                    self.pState, &x0, &y0,
+                    &self.pState, &x0, &y0,
                     &Mu00,
                     &Uu11, &Uu20, &Uu02,
                     roi2_sz.sz.width, roi2_sz.sz.height,
@@ -562,7 +549,7 @@ cdef class RealtimeAnalyzer:
             self.cmpdiff_im_roi_view = self.cmpdiff_im.roi(self._left,self._bottom,self._roi_sz)
 
 def fit_slope(FastImage.FastImage8u im):
-    cdef fit_params.cFitParamsMomentState_64f *pState
+    cdef opencv.CvMoments pState
     cdef double x0, y0
     cdef double rise, run, slope, eccentricity
     cdef double evalA, evalB
@@ -571,9 +558,8 @@ def fit_slope(FastImage.FastImage8u im):
     cdef double Mu00, Uu11, Uu02, Uu20
     cdef int result, eigen_err
 
-    CHK_HAVEGIL( fit_params.cFitParamsMomentInitAlloc_64f( &pState ))
     try:
-        result = fit_params.fit_params( pState, &x0, &y0,
+        result = fit_params.fit_params( &pState, &x0, &y0,
                                         &Mu00,
                                         &Uu11, &Uu20, &Uu02,
                                         im.imsiz.sz.width, im.imsiz.sz.height,
@@ -614,7 +600,7 @@ def fit_slope(FastImage.FastImage8u im):
         else:
             raise ValueError('unknown result (%d)'%result)
     finally:
-        CHK_HAVEGIL( fit_params.cFitParamsMomentFree_64f( pState ))
+        pass
 
     return slope, eccentricity
 
