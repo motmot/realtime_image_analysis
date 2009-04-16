@@ -1,3 +1,4 @@
 build
 motmot/realtime_image_analysis/realtime_image_analysis.so
 dist
+*.pyc
