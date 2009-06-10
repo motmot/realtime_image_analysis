@@ -119,7 +119,7 @@ class TestRealtimeImageAnalysis(unittest.TestCase):
                              'mean2',
                              'std2',
                              'running_stdframe',
-                             'compareframe8u' )
+                             )
             this_results = [ locals()[name] for name in results_order ]
             results.append( this_results )
 
