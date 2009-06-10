@@ -97,9 +97,11 @@ def do_bg_maint( running_mean_im,
         running_stdframe[:,:] = n_sigma*running_stdframe
     showmat('running_stdframe',locals())
 
-    # XXX TODO: currently this ignores mask and non_gaussian stuff
     compareframe8u[:,:] = running_stdframe.round()
     showmat('compareframe8u',locals())
+
+    noisy_pixels_mask = running_mean8u_im > bright_non_gaussian_cutoff
+    compareframe8u[noisy_pixels_mask] = bright_non_gaussian_replacement
 
     return real_std_est
 
