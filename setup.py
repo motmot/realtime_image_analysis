@@ -17,6 +17,8 @@ if 1:
     ext_modules.append(Extension(name='motmot.realtime_image_analysis.realtime_image_analysis',
                                  sources=realtime_image_analysis_sources,
                                  libraries=['fwBase','fwImage','cv'],
+                                 include_dirs=['/usr/include','/usr/local/include'],
+                                 library_dirs=['/usr/lib'],
                                  ))
 
 setup(name='motmot.realtime_image_analysis',
