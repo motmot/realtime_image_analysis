@@ -20,8 +20,10 @@ nan = nx.nan
 cimport c_lib
 cimport c_python
 
+cimport fic
 cimport ipp
 cimport fit_params
+cimport opencv
 
 cdef extern from "unistd.h":
     ctypedef long intptr_t
@@ -38,10 +40,11 @@ cdef extern from "eigen.h":
                         double *evalA, double *evecA1,
                         double *evalB, double *evecB1 )
 
-cdef extern from "motmot_ipp_macros.h":
+cdef extern from "motmot_ria_macros.h":
     ipp.Ipp8u*  IMPOS8u(  ipp.Ipp8u*  im, int step, int bottom, int left)
     ipp.Ipp32f* IMPOS32f( ipp.Ipp32f* im, int step, int bottom, int left)
     void CHK_NOGIL( ipp.IppStatus errval )
+    void CHK_FIC_NOGIL( fic.FicStatus errval )
     void SET_ERR( int errval )
 
 cdef extern from "c_time_time.h":
@@ -72,14 +75,7 @@ class FitParamsError(Exception):
     pass
 
 cdef class FitParamsClass:
-    cdef ipp.IppiMomentState_64f *pState
-    def __cinit__(self,*args,**kw):
-        # image moment calculation initialization
-        CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &self.pState, ipp.ippAlgHintFast ) )
-
-    def __dealloc__(self):
-        CHK_HAVEGIL( ipp.ippiMomentFree_64f( self.pState ))
-
+    cdef opencv.CvMoments pState
     def fit(self,FastImage.FastImage8u im):
         cdef double x0, y0
         cdef double Mu00, Uu11, Uu02, Uu20
@@ -89,7 +85,7 @@ cdef class FitParamsClass:
         cdef double evalA, evalB
         cdef double evecA1, evecB1
 
-        result = fit_params.fit_params( self.pState, &x0, &y0,
+        result = fit_params.fit_params( &self.pState, &x0, &y0,
                                         &Mu00,
                                         &Uu11, &Uu20, &Uu02,
                                         im.imsiz.sz.width, im.imsiz.sz.height,
@@ -169,17 +165,10 @@ cdef class RealtimeAnalyzer:
     cdef FastImage.FastImage8u mean_im_roi_view, cmp_im_roi_view
 
     # other stuff
-    cdef ipp.IppiMomentState_64f *pState
+    cdef opencv.CvMoments pState
 
     cdef object imname2im
     cdef int max_num_points
-
-    def __cinit__(self,*args,**kw):
-        # image moment calculation initialization
-        CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &self.pState, ipp.ippAlgHintFast ) )
-
-    def __dealloc__(self):
-        CHK_HAVEGIL( ipp.ippiMomentFree_64f( self.pState ))
 
     def __init__(self,object lbrt,int maxwidth, int maxheight, int max_num_points, int roi2_radius):
         # software analysis ROI
@@ -283,6 +272,7 @@ cdef class RealtimeAnalyzer:
 
         cdef double entry_time
         cdef double now
+        cdef fic.FiciSize fic_sz
 
         entry_time = time.time()
 
@@ -358,17 +348,21 @@ cdef class RealtimeAnalyzer:
                                                  <ipp.Ipp8u*>self.absdiff_im_roi_view.im, self.absdiff_im_roi_view.step,
                                                  <ipp.Ipp8u*>self.cmpdiff_im_roi_view.im, self.cmpdiff_im_roi_view.step,
                                                  self._roi_sz.sz,0))
-                CHK_NOGIL( ipp.ippiMaxIndx_8u_C1R(
-                    <ipp.Ipp8u*>self.cmpdiff_im_roi_view.im,self.cmpdiff_im_roi_view.step,
-                    self._roi_sz.sz, &max_std_diff, &index_x, &index_y))
+                fic_sz.width = self._roi_sz.sz.width;
+                fic_sz.height = self._roi_sz.sz.height;
+                CHK_FIC_NOGIL( fic.ficiMaxIndx_8u_C1R(
+                    <fic.Fic8u*>self.cmpdiff_im_roi_view.im,self.cmpdiff_im_roi_view.step,
+                    fic_sz, &max_std_diff, &index_x, &index_y))
 
                 im_loc_ptr = (<ipp.Ipp8u*>self.absdiff_im_roi_view.im)+self.absdiff_im_roi_view.step*index_y+index_x
                 max_abs_diff = im_loc_ptr[0] # value at maximum difference from std
             else:
                 max_std_diff=0
-                CHK_NOGIL( ipp.ippiMaxIndx_8u_C1R(
-                    <ipp.Ipp8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
-                    self._roi_sz.sz, &max_abs_diff, &index_x, &index_y))
+                fic_sz.width = self._roi_sz.sz.width;
+                fic_sz.height = self._roi_sz.sz.height;
+                CHK_FIC_NOGIL( fic.ficiMaxIndx_8u_C1R(
+                    <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
+                    fic_sz, &max_abs_diff, &index_x, &index_y))
 
             if use_roi2:
                 # find mini-ROI for further analysis (defined in non-ROI space)
@@ -427,7 +421,7 @@ cdef class RealtimeAnalyzer:
                     found_point = 0 # c int (bool)
             if found_point:
                 result = fit_params.fit_params(
-                    self.pState, &x0, &y0,
+                    &self.pState, &x0, &y0,
                     &Mu00,
                     &Uu11, &Uu20, &Uu02,
                     roi2_sz.sz.width, roi2_sz.sz.height,
@@ -555,7 +549,7 @@ cdef class RealtimeAnalyzer:
             self.cmpdiff_im_roi_view = self.cmpdiff_im.roi(self._left,self._bottom,self._roi_sz)
 
 def fit_slope(FastImage.FastImage8u im):
-    cdef ipp.IppiMomentState_64f *pState
+    cdef opencv.CvMoments pState
     cdef double x0, y0
     cdef double rise, run, slope, eccentricity
     cdef double evalA, evalB
@@ -564,50 +558,46 @@ def fit_slope(FastImage.FastImage8u im):
     cdef double Mu00, Uu11, Uu02, Uu20
     cdef int result, eigen_err
 
-    CHK_HAVEGIL( ipp.ippiMomentInitAlloc_64f( &pState, ipp.ippAlgHintFast ) )
-    try:
-        result = fit_params.fit_params( pState, &x0, &y0,
-                                        &Mu00,
-                                        &Uu11, &Uu20, &Uu02,
-                                        im.imsiz.sz.width, im.imsiz.sz.height,
-                                        <unsigned char*>im.im,
-                                        im.step)
+    result = fit_params.fit_params( &pState, &x0, &y0,
+                                    &Mu00,
+                                    &Uu11, &Uu20, &Uu02,
+                                    im.imsiz.sz.width, im.imsiz.sz.height,
+                                    <unsigned char*>im.im,
+                                    im.step)
 
-        # See note at top of file about determining orientation from
-        # pixel covariance.
+    # See note at top of file about determining orientation from
+    # pixel covariance.
 
-        # note that x0 and y0 are now relative to the ROI origin
-        if result == fit_params.CFitParamsNoError:
-            area = Mu00
-            eigen_err = eigen_2x2_real( Uu20, Uu11,
-                                        Uu11, Uu02,
-                                        &evalA, &evecA1,
-                                        &evalB, &evecB1)
-            if eigen_err:
-                slope = nan
-                eccentricity = 0.0
-            else:
-                rise = 1.0 # 2nd component of eigenvectors will always be 1.0
-                if evalA > evalB:
-                    run = evecA1
-                    eccentricity = evalA/evalB
-                else:
-                    run = evecB1
-                    eccentricity = evalB/evalA
-                slope = rise/run
-
-        elif result == fit_params.CFitParamsZeroMomentError:
-            x0 = nan
-            y0 = nan
-            x0_abs = nan
-            y0_abs = nan
-            found_point = 0
-        elif result == fit_params.CFitParamsCentralMomentError:
+    # note that x0 and y0 are now relative to the ROI origin
+    if result == fit_params.CFitParamsNoError:
+        area = Mu00
+        eigen_err = eigen_2x2_real( Uu20, Uu11,
+                                    Uu11, Uu02,
+                                    &evalA, &evecA1,
+                                    &evalB, &evecB1)
+        if eigen_err:
             slope = nan
+            eccentricity = 0.0
         else:
-            raise ValueError('unknown result (%d)'%result)
-    finally:
-        CHK_HAVEGIL( ipp.ippiMomentFree_64f( pState ))
+            rise = 1.0 # 2nd component of eigenvectors will always be 1.0
+            if evalA > evalB:
+                run = evecA1
+                eccentricity = evalA/evalB
+            else:
+                run = evecB1
+                eccentricity = evalB/evalA
+            slope = rise/run
+
+    elif result == fit_params.CFitParamsZeroMomentError:
+        x0 = nan
+        y0 = nan
+        x0_abs = nan
+        y0_abs = nan
+        found_point = 0
+    elif result == fit_params.CFitParamsCentralMomentError:
+        slope = nan
+    else:
+        raise ValueError('unknown result (%d)'%result)
 
     return slope, eccentricity
 

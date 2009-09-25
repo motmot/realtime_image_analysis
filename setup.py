@@ -26,6 +26,7 @@ if 1:
     # Pyrex build of realtime_image_analysis
     realtime_image_analysis_sources=['src/realtime_image_analysis.pyx',
                                      'src/c_fit_params.c',
+                                     'src/fic.c',
                                      'src/eigen.c',
                                      'src/c_time_time.c',
                                      ]+ipp_sources
@@ -33,7 +34,7 @@ if 1:
                                  sources=realtime_image_analysis_sources,
                                  include_dirs=ipp_include_dirs,
                                  library_dirs=ipp_library_dirs,
-                                 libraries=ipp_libraries,
+                                 libraries=ipp_libraries+['cv'],
                                  define_macros=ipp_define_macros,
                                  extra_link_args=ipp_extra_link_args,
                                  extra_compile_args=ipp_extra_compile_args,
@@ -46,7 +47,7 @@ setup(name='motmot.realtime_image_analysis',
 realtime trackers: 2D only trackers with no consideration of camera
 calibration and potentially-3D trackers with camera calibration and
 distortion information.""",
-      version='0.5.5',
+      version='0.5.5.ipp',
       author="Andrew Straw",
       author_email="strawman@astraw.com",
       url='http://code.astraw.com/projects/motmot',
@@ -54,5 +55,4 @@ distortion information.""",
       namespace_packages = ['motmot'],
       packages = find_packages(),
       ext_modules= ext_modules,
-      zip_safe = True,
       )

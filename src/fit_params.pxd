@@ -1,4 +1,5 @@
 cimport ipp
+cimport opencv
 
 cdef extern from "c_fit_params.h":
     ctypedef enum CFitParamsReturnType:
@@ -6,7 +7,8 @@ cdef extern from "c_fit_params.h":
         CFitParamsZeroMomentError
         CFitParamsOtherError
         CFitParamsCentralMomentError
-    CFitParamsReturnType fit_params( ipp.IppiMomentState_64f *pState,
+
+    CFitParamsReturnType fit_params( opencv.CvMoments *pState,
                                      double *x0, double *y0,
                                      double *Mu00,
                                      double *Uu11, double *Uu20, double *Uu02,
