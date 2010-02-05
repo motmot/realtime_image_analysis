@@ -222,6 +222,14 @@ cdef extern from "fi_ipp.h":
         ippRndZero
         ippRndNear
 
+    ctypedef enum IppiMaskSize:
+        ippMskSize1x3
+        ippMskSize1x5
+        ippMskSize3x1
+        ippMskSize3x3
+        ippMskSize5x1
+        ippMskSize5x5
+
     ctypedef enum IppCpuType:
         ippCpuUnknown
         ippCpuPP
@@ -433,6 +441,16 @@ cdef extern from "fi_ipp.h":
                               IppiSize roiSize)
     IppStatus ippiAbs_32f_C1IR(Ipp32f* pSrcDst, int srcDstStep,
                                IppiSize roiSize)
+    IppStatus ippiFilterLowpass_8u_C1R(Ipp8u* pSrc, int srcStep,Ipp8u* pDst, int dstStep,IppiSize roiSize,IppiMaskSize maskSize)
+    IppStatus ippiFilterSobelHoriz_32f_C1R( Ipp32f *pSrc, int srcStep, Ipp32f *pDst, int dstStep, IppiSize dstRoiSize )
+    IppStatus ippiFilterSobelVert_32f_C1R ( Ipp32f *pSrc, int srcStep, Ipp32f *pDst, int dstStep, IppiSize dstRoiSize )
+    IppStatus ippiFilterSobelHoriz_8u_C1R( Ipp8u *pSrc, int srcStep, Ipp8u *pDst, int dstStep, IppiSize dstRoiSize )
+    IppStatus ippiFilterSobelVert_8u_C1R ( Ipp8u *pSrc, int srcStep, Ipp8u *pDst, int dstStep, IppiSize dstRoiSize )
+
+    IppStatus ippiDilate3x3_8u_C1R( Ipp8u  *pSrc, int srcStep, Ipp8u  *pDst, int dstStep, IppiSize roiSize )
+    IppStatus ippiDilate3x3_8u_C1IR( Ipp8u  *pSrc, int srcStep, IppiSize roiSize )
+
+    IppStatus ippiFilterGauss_8u_C1R( Ipp8u   *pSrc, int srcStep, Ipp8u  *pDst, int dstStep, IppiSize dstRoiSize, IppiMaskSize maskSize )
 #cdef extern from "ipps.h":
     IppStatus ippSetFlushToZero( int value, unsigned int* pUMask )
     IppStatus ippSetDenormAreZeros( int value )
