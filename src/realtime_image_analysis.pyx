@@ -224,7 +224,8 @@ cdef class RealtimeAnalyzer:
                 int use_roi2,
                 int use_cmp=0,
                 double max_duration_sec=0.0,
-                int return_debug_values=0
+                int return_debug_values=0,
+                int n_erode_absdiff=0
                 ):
         """find location and orientation of local points (fast enough for realtime use)
 
@@ -287,6 +288,10 @@ cdef class RealtimeAnalyzer:
             raise ValueError("input image size (%s) does not correspond to ROI (%s)"
                              "(set RealtimeAnalyzer.roi before calling)"%(
                 str(raw_im_small.imsiz),str(self._roi_sz)))
+
+        if n_erode_absdiff != 0:
+            raise NotImplementedError('image erosion not implemented '
+                                      'in framewave backend')
 
         # find difference from mean
         c_python.Py_BEGIN_ALLOW_THREADS
