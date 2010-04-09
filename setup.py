@@ -23,8 +23,7 @@ ipp_extra_compile_args = vals.get('extra_compile_args',[])
 ext_modules = []
 
 if 1:
-    # Pyrex build of realtime_image_analysis
-    realtime_image_analysis_sources=['src/realtime_image_analysis.pyx',
+    realtime_image_analysis_sources=['src/realtime_image_analysis.c',
                                      'src/c_fit_params.c',
                                      'src/fic.c',
                                      'src/eigen.c',
