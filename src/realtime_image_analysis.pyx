@@ -225,7 +225,8 @@ cdef class RealtimeAnalyzer:
                 int use_cmp=0,
                 double max_duration_sec=0.0,
                 int return_debug_values=0,
-                int n_erode_absdiff=0
+                int n_erode_absdiff=0,
+                int return_extra=0
                 ):
         """find location and orientation of local points (fast enough for realtime use)
 
@@ -475,8 +476,7 @@ cdef class RealtimeAnalyzer:
             c_python.Py_END_ALLOW_THREADS
 
             if found_point:
-                if not (n_found_points+1>=self.max_num_points): # only modify the image if more follow...
-                    self.absdiff_im_roi2_view.set_val(0, roi2_sz )
+                self.absdiff_im_roi2_view.set_val(0, roi2_sz )
 
             if not found_point:
                 break
@@ -489,6 +489,18 @@ cdef class RealtimeAnalyzer:
             all_points_found.append(pt_tuple)
             n_found_points = n_found_points+1
 
+        if return_extra:
+            c_python.Py_BEGIN_ALLOW_THREADS
+            CHK_FIC_NOGIL(fic.ficiMaxIndx_8u_C1R(
+                    <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
+                     fic_sz, &max_std_diff, &index_x, &index_y))
+            c_python.Py_END_ALLOW_THREADS
+
+            extra = {
+                # absdiff_im is now the difference between the raw frame and ufmf reconstructable image
+                'max_error' : max_std_diff,
+                }
+            return all_points_found, extra
         return all_points_found
 
     def get_image_view(self,which='mean'):
