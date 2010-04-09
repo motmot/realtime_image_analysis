@@ -168,14 +168,14 @@ cdef class RealtimeAnalyzer:
     cdef opencv.CvMoments pState
 
     cdef object imname2im
-    cdef int max_num_points
+    cdef int _max_num_points
 
     def __init__(self,object lbrt,int maxwidth, int maxheight, int max_num_points, int roi2_radius):
         # software analysis ROI
         self.maxwidth = maxwidth
         self.maxheight = maxheight
 
-        self.max_num_points = max_num_points
+        self._max_num_points = max_num_points
         #print 'realtime analysis with %d points maximum starting'%self.max_num_points
 
         self._roi2_radius = roi2_radius
@@ -321,7 +321,7 @@ cdef class RealtimeAnalyzer:
                                                self._diff_threshold, self._diff_threshold, fw.fwCmpLess))
         c_python.Py_END_ALLOW_THREADS
 
-        while n_found_points < self.max_num_points:
+        while n_found_points < self._max_num_points:
             if max_duration_sec != 0.0:
                 now = time.time()
                 if (now-entry_time) > max_duration_sec:
@@ -512,6 +512,12 @@ cdef class RealtimeAnalyzer:
             return self._roi2_radius
         def __set__(self,value):
             self._roi2_radius = value
+
+    property max_num_points:
+        def __get__(self):
+            return self._max_num_points
+        def __set__(self,value):
+            self._max_num_points = value
 
     property clear_threshold:
         def __get__(self):
