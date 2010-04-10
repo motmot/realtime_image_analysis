@@ -70,6 +70,30 @@ FicStatus ficiMaxIndx_8u_C1R(const Fic8u* pSrc, const int srcStep,
   return ficStsNoErr;
 }
 
+FicStatus ficiMean_8u_C1R(const Fic8u* pSrc, const int srcStep,
+                          const FiciSize roiSize, Fic64f* val) {
+  int i,j;
+  Fic8u curval;
+  Fic8u* rowstart;
+  double accum;
+
+  // Note: Kahan sum or pairwise summation would give better accuracy.
+
+  accum = 0;
+
+  for (i=0;i<roiSize.height;i++){
+    rowstart = (Fic8u*)((intptr_t)pSrc + i*srcStep);
+    for (j=0;j<roiSize.width;j++){
+      curval = *rowstart;
+      rowstart++;
+      accum += curval;
+    }
+  }
+
+  *val = accum/(double)(roiSize.width*roiSize.height);
+  return ficStsNoErr;
+}
+
 FicStatus ficiMinIndx_8u_C1R(const Fic8u* pSrc, const int srcStep,
                              const FiciSize roiSize, Fic8u* val,
                              int* x, int*y) {

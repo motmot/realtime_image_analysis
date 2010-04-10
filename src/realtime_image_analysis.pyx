@@ -263,6 +263,7 @@ cdef class RealtimeAnalyzer:
         cdef fw.Fw8u max_abs_diff
         cdef fw.Fw8u* im_loc_ptr
         cdef fw.Fw8u max_std_diff
+        cdef fw.Fw64f mean_error
 
         cdef fw.Fw8u clear_despeckle_thresh
 
@@ -494,11 +495,15 @@ cdef class RealtimeAnalyzer:
             CHK_FIC_NOGIL(fic.ficiMaxIndx_8u_C1R(
                     <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
                      fic_sz, &max_std_diff, &index_x, &index_y))
+            CHK_FIC_NOGIL(fic.ficiMean_8u_C1R(
+                    <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
+                     fic_sz, &mean_error))
             c_python.Py_END_ALLOW_THREADS
 
             extra = {
                 # absdiff_im is now the difference between the raw frame and ufmf reconstructable image
                 'max_error' : max_std_diff,
+                'mean_error' : mean_error,
                 }
             return all_points_found, extra
         return all_points_found
