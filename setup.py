@@ -39,7 +39,7 @@ if 1:
                                  extra_compile_args=ipp_extra_compile_args,
                                  ))
 
-setup(name='motmot.realtime_image_analysis',
+setup(name='motmot.realtime_image_analysis-ipp',
       description="several image analysis functions that require Intel IPP and FastImage",
       long_description=
 """This code serves as the basis for at least 2 different classes of
