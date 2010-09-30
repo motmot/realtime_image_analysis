@@ -1,3 +1,4 @@
 include src/realtime_image_analysis.c
 include src/*.h
+include src/*.pyx
 include stdeb.cfg
