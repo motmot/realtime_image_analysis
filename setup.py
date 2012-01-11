@@ -20,6 +20,12 @@ ipp_define_macros = vals.get('ipp_define_macros',[])
 ipp_extra_link_args = vals.get('extra_link_args',[])
 ipp_extra_compile_args = vals.get('extra_compile_args',[])
 
+cv_include_dirs = ['/usr/include/opencv-2.3.1']
+cv_libraries = ['opencv_core',
+                'opencv_legacy',
+                'opencv_imgproc',
+                ]
+
 ext_modules = []
 
 if 1:
@@ -31,9 +37,9 @@ if 1:
                                      ]+ipp_sources
     ext_modules.append(Extension(name='motmot.realtime_image_analysis.realtime_image_analysis',
                                  sources=realtime_image_analysis_sources,
-                                 include_dirs=ipp_include_dirs,
+                                 include_dirs=ipp_include_dirs+cv_include_dirs,
                                  library_dirs=ipp_library_dirs,
-                                 libraries=ipp_libraries+['cv'],
+                                 libraries=ipp_libraries+cv_libraries,
                                  define_macros=ipp_define_macros,
                                  extra_link_args=ipp_extra_link_args,
                                  extra_compile_args=ipp_extra_compile_args,
