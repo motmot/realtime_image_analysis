@@ -118,7 +118,8 @@ cdef class FitParamsClass:
         return (x0, y0, area, slope, eccentricity)
 
 def py_fit_params(FastImage.FastImage8u im):
-    cdef FitParamsClass fpc = FitParamsClass()
+    cdef FitParamsClass fpc
+    fpc = FitParamsClass()
     return fpc.fit(im)
 
 cdef class RealtimeAnalyzer:
