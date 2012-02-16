@@ -1,12 +1,19 @@
-import os
+import sys
+import os.path
 from setuptools import setup, Extension, find_packages
-import pkg_resources # make sure FastImage is importable
 
+try:
+    from Pyrex.Distutils import build_ext
+except ImportError:
+    print "Pyrex is required to build realtime_image_analysis.pyx"
+    sys.exit(-1)
+
+import pkg_resources # make sure FastImage is importable
 import motmot.FastImage.FastImage as FastImage
-major,minor,build = FastImage.get_IPP_version()
 import motmot.FastImage.util as FastImage_util
 
 # build with same IPP as FastImage
+major,minor,build = FastImage.get_IPP_version()
 vals = FastImage_util.get_build_info(ipp_static=FastImage.get_IPP_static(),
                                      ipp_version='%d.%d'%(major,minor),
                                      ipp_arch=FastImage.get_IPP_arch(),
@@ -20,7 +27,14 @@ ipp_define_macros = vals.get('ipp_define_macros',[])
 ipp_extra_link_args = vals.get('extra_link_args',[])
 ipp_extra_compile_args = vals.get('extra_compile_args',[])
 
-cv_include_dirs = ['/usr/include/opencv-2.3.1']
+if os.path.exists('/usr/include/opencv-2.3.1'):
+    #ROS packaging
+    cv_inc_dir = 'opencv-2.3.1'
+else:
+    #debian packaging
+    cv_inc_dir = ''
+
+cv_include_dirs = ['/usr/include/'+cv_inc_dir]
 cv_libraries = ['opencv_core',
                 'opencv_legacy',
                 'opencv_imgproc',
@@ -29,7 +43,7 @@ cv_libraries = ['opencv_core',
 ext_modules = []
 
 if 1:
-    realtime_image_analysis_sources=['src/realtime_image_analysis.c',
+    realtime_image_analysis_sources=['src/realtime_image_analysis.pyx',
                                      'src/c_fit_params.c',
                                      'src/fic.c',
                                      'src/eigen.c',
