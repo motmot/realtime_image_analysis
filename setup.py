@@ -2,10 +2,10 @@ import sys
 import os.path
 from setuptools import setup, Extension, find_packages
 
-try:
-    from Pyrex.Distutils import build_ext
-except ImportError:
-    print "Pyrex is required to build realtime_image_analysis.pyx"
+cython_cpp_file = 'src/realtime_image_analysis'
+if not os.path.exists(cython_cpp_file+'.cpp'):
+    print >> sys.stderr, "file %s.cpp does not exist. Run:"%cython_cpp_file
+    print >> sys.stderr, "  cython --cplus %s.pyx"%cython_cpp_file
     sys.exit(-1)
 
 import pkg_resources # make sure FastImage is importable
@@ -43,8 +43,8 @@ cv_libraries = ['opencv_core',
 ext_modules = []
 
 if 1:
-    realtime_image_analysis_sources=['src/realtime_image_analysis.pyx',
-                                     'src/c_fit_params.c',
+    realtime_image_analysis_sources=['src/realtime_image_analysis.cpp',
+                                     'src/c_fit_params.cpp',
                                      'src/fic.c',
                                      'src/eigen.c',
                                      'src/c_time_time.c',
@@ -53,7 +53,7 @@ if 1:
                                  sources=realtime_image_analysis_sources,
                                  include_dirs=ipp_include_dirs+cv_include_dirs,
                                  library_dirs=ipp_library_dirs,
-                                 libraries=ipp_libraries+cv_libraries,
+                                 libraries=ipp_libraries+cv_libraries+['stdc++'],
                                  define_macros=ipp_define_macros,
                                  extra_link_args=ipp_extra_link_args,
                                  extra_compile_args=ipp_extra_compile_args,

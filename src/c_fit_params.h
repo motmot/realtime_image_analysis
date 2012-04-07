@@ -1,7 +1,7 @@
 #ifndef _C_FIT_PARAMS_h_
 #define _C_FIT_PARAMS_h_
 
-#include <opencv/cv.h>
+#include <opencv2/opencv.hpp>
 
 typedef enum {
   CFitParamsNoError,
