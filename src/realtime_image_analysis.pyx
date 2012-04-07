@@ -74,6 +74,14 @@ cdef print_8u_arr(ipp.Ipp8u* src,int width,int height,int src_step):
 class FitParamsError(Exception):
     pass
 
+def cython_is_broken():
+
+    # This will break cython compilation but not pyrex. That's what we
+    # want, since FastImage was compiled with pyrex and we don't want
+    # the dreaded python capsule error.
+
+    blech
+
 cdef class FitParamsClass:
     cdef opencv.CvMoments pState
     def fit(self,FastImage.FastImage8u im):

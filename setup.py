@@ -2,10 +2,10 @@ import sys
 import os.path
 from setuptools import setup, Extension, find_packages
 
-cython_cpp_file = 'src/realtime_image_analysis'
-if not os.path.exists(cython_cpp_file+'.cpp'):
-    print >> sys.stderr, "file %s.cpp does not exist. Run:"%cython_cpp_file
-    print >> sys.stderr, "  cython --cplus %s.pyx"%cython_cpp_file
+pyrex_cpp_file = 'src/realtime_image_analysis'
+if not os.path.exists(pyrex_cpp_file+'.cpp'):
+    print >> sys.stderr, "file %s.cpp does not exist. Run:"%pyrex_cpp_file
+    print >> sys.stderr, "  pyrexc --cplus %s.pyx"%pyrex_cpp_file
     sys.exit(-1)
 
 import pkg_resources # make sure FastImage is importable
