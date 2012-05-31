@@ -66,7 +66,7 @@ setup(name='motmot.realtime_image_analysis-ipp',
 realtime trackers: 2D only trackers with no consideration of camera
 calibration and potentially-3D trackers with camera calibration and
 distortion information.""",
-      version='0.5.8.2',
+      version='0.5.9',
       author="Andrew Straw",
       author_email="strawman@astraw.com",
       url='http://code.astraw.com/projects/motmot',
