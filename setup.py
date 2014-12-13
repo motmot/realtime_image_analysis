@@ -1,12 +1,7 @@
 import sys
 import os.path
 from setuptools import setup, Extension, find_packages
-
-pyrex_cpp_file = 'src/realtime_image_analysis'
-if not os.path.exists(pyrex_cpp_file+'.cpp'):
-    print >> sys.stderr, "file %s.cpp does not exist. Run:"%pyrex_cpp_file
-    print >> sys.stderr, "  pyrexc --cplus %s.pyx"%pyrex_cpp_file
-    sys.exit(-1)
+from Cython.Build import cythonize
 
 import pkg_resources # make sure FastImage is importable
 import motmot.FastImage.FastImage as FastImage
@@ -43,7 +38,7 @@ cv_libraries = ['opencv_core',
 ext_modules = []
 
 if 1:
-    realtime_image_analysis_sources=['src/realtime_image_analysis.cpp',
+    realtime_image_analysis_sources=['src/realtime_image_analysis.pyx',
                                      'src/c_fit_params.cpp',
                                      'src/fic.c',
                                      'src/eigen.c',
@@ -57,7 +52,9 @@ if 1:
                                  define_macros=ipp_define_macros,
                                  extra_link_args=ipp_extra_link_args,
                                  extra_compile_args=ipp_extra_compile_args,
+                                 language="c++",
                                  ))
+    ext_modules = cythonize(ext_modules)
 
 setup(name='motmot.realtime_image_analysis-ipp',
       description="several image analysis functions that require Intel IPP and FastImage",
