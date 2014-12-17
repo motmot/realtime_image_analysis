@@ -1,0 +1,1 @@
+../../FastImage/src/c_lib.pxd
