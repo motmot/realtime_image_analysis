@@ -1,7 +1,7 @@
 cimport ipp
 cimport opencv
 
-cdef extern from "c_fit_params.h":
+cdef extern from "c_fit_params.h" nogil:
     ctypedef enum CFitParamsReturnType:
         CFitParamsNoError
         CFitParamsZeroMomentError
