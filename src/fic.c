@@ -12,64 +12,6 @@ FicStatus ficMomentFree_64f( ficMomentState_64f*pState){
   return ficStsNoErr;
 }
 
-FicStatus ficiMaxIndx_32f_C1R(const Fic32f* pSrc, const int srcStep,
-                              const FiciSize roiSize, Fic32f* val,
-                              int* x, int*y) {
-  int i,j;
-  Fic32f curmax;
-  Fic32f curval;
-  Fic32f* rowstart;
-
-  curmax=pSrc[0];
-  *x=0;
-  *y=0;
-
-  for (i=0;i<roiSize.height;i++){
-    rowstart = (Fic32f*)((intptr_t)pSrc + i*srcStep);
-    for (j=0;j<roiSize.width;j++){
-      curval = *rowstart;
-      rowstart++;
-      if (curval>curmax) {
-        curmax=curval;
-        *x=j;
-        *y=i;
-      }
-    }
-  }
-
-  *val = curmax;
-  return ficStsNoErr;
-}
-
-FicStatus ficiMaxIndx_8u_C1R(const Fic8u* pSrc, const int srcStep,
-                             const FiciSize roiSize, Fic8u* val,
-                             int* x, int*y) {
-  int i,j;
-  Fic8u curmax;
-  Fic8u curval;
-  Fic8u* rowstart;
-
-  curmax=pSrc[0];
-  *x=0;
-  *y=0;
-
-  for (i=0;i<roiSize.height;i++){
-    rowstart = (Fic8u*)((intptr_t)pSrc + i*srcStep);
-    for (j=0;j<roiSize.width;j++){
-      curval = *rowstart;
-      rowstart++;
-      if (curval>curmax) {
-        curmax = curval;
-        *x=j;
-        *y=i;
-      }
-    }
-  }
-
-  *val = curmax;
-  return ficStsNoErr;
-}
-
 FicStatus ficiMean_8u_C1R(const Fic8u* pSrc, const int srcStep,
                           const FiciSize roiSize, Fic64f* val) {
   int i,j;
@@ -91,35 +33,6 @@ FicStatus ficiMean_8u_C1R(const Fic8u* pSrc, const int srcStep,
   }
 
   *val = accum/(double)(roiSize.width*roiSize.height);
-  return ficStsNoErr;
-}
-
-FicStatus ficiMinIndx_8u_C1R(const Fic8u* pSrc, const int srcStep,
-                             const FiciSize roiSize, Fic8u* val,
-                             int* x, int*y) {
-  int i,j;
-  Fic8u curmin;
-  Fic8u curval;
-  Fic8u* rowstart;
-
-  curmin=pSrc[0];
-  *x=0;
-  *y=0;
-
-  for (i=0;i<roiSize.height;i++){
-    rowstart = (Fic8u*)((intptr_t)pSrc + i*srcStep);
-    for (j=0;j<roiSize.width;j++){
-      curval = *rowstart;
-      rowstart++;
-      if (curval<curmin) {
-        curmin = curval;
-        *x=j;
-        *y=i;
-      }
-    }
-  }
-
-  *val = curmin;
   return ficStsNoErr;
 }
 

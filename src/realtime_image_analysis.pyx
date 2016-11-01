@@ -265,9 +265,10 @@ cdef class RealtimeAnalyzer:
         cdef int index_x,index_y
 
         cdef ipp.Ipp8u cur_val, mean_val, nstd_val
-        cdef ipp.Ipp8u max_abs_diff
+        cdef ipp.Ipp32f min_abs_diff, max_abs_diff
         cdef ipp.Ipp8u* im_loc_ptr
-        cdef ipp.Ipp8u max_std_diff
+        cdef ipp.Ipp32f min_std_diff, max_std_diff
+        cdef ipp.IppiPoint min_index, max_index
         cdef ipp.Ipp64f mean_error
 
         cdef ipp.Ipp8u clear_despeckle_thresh
@@ -281,6 +282,7 @@ cdef class RealtimeAnalyzer:
         cdef double entry_time
         cdef double now
         cdef fic.FiciSize fic_sz
+        cdef ipp.IppiSize ipp_sz
 
         entry_time = time.time()
 
@@ -359,21 +361,25 @@ cdef class RealtimeAnalyzer:
                                                      <ipp.Ipp8u*>self.absdiff_im_roi_view.im, self.absdiff_im_roi_view.step,
                                                      <ipp.Ipp8u*>self.cmpdiff_im_roi_view.im, self.cmpdiff_im_roi_view.step,
                                                      self._roi_sz.sz,0))
-                    fic_sz.width = self._roi_sz.sz.width;
-                    fic_sz.height = self._roi_sz.sz.height;
-                    CHK_FIC_NOGIL( fic.ficiMaxIndx_8u_C1R(
-                        <fic.Fic8u*>self.cmpdiff_im_roi_view.im,self.cmpdiff_im_roi_view.step,
-                        fic_sz, &max_std_diff, &index_x, &index_y))
+                    ipp_sz.width = self._roi_sz.sz.width;
+                    ipp_sz.height = self._roi_sz.sz.height;
+                    CHK_FIC_NOGIL( ipp.ippiMinMaxIndx_8u_C1R(
+                        <ipp.Ipp8u*>self.cmpdiff_im_roi_view.im,self.cmpdiff_im_roi_view.step,
+                        ipp_sz, &min_std_diff, &max_std_diff, &min_index, &max_index))
+                    index_x = max_index.x
+                    index_y = max_index.y
 
                     im_loc_ptr = (<ipp.Ipp8u*>self.absdiff_im_roi_view.im)+self.absdiff_im_roi_view.step*index_y+index_x
                     max_abs_diff = im_loc_ptr[0] # value at maximum difference from std
                 else:
                     max_std_diff=0
-                    fic_sz.width = self._roi_sz.sz.width;
-                    fic_sz.height = self._roi_sz.sz.height;
-                    CHK_FIC_NOGIL( fic.ficiMaxIndx_8u_C1R(
-                        <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
-                        fic_sz, &max_abs_diff, &index_x, &index_y))
+                    ipp_sz.width = self._roi_sz.sz.width;
+                    ipp_sz.height = self._roi_sz.sz.height;
+                    CHK_NOGIL( ipp.ippiMinMaxIndx_8u_C1R(
+                        <ipp.Ipp8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
+                        ipp_sz, &min_abs_diff, &max_abs_diff, &min_index, &max_index))
+                    index_x = max_index.x
+                    index_y = max_index.y
 
                 if use_roi2:
                     # find mini-ROI for further analysis (defined in non-ROI space)
@@ -493,9 +499,14 @@ cdef class RealtimeAnalyzer:
 
         if return_extra:
             with nogil:
-                CHK_FIC_NOGIL(fic.ficiMaxIndx_8u_C1R(
-                        <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
-                         fic_sz, &max_std_diff, &index_x, &index_y))
+                CHK_NOGIL(ipp.ippiMinMaxIndx_8u_C1R(
+                        <ipp.Ipp8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
+                         ipp_sz, &min_std_diff, &max_std_diff, &min_index, &max_index))
+                index_x = max_index.x
+                index_y = max_index.y
+
+                fic_sz.width = self._roi_sz.sz.width;
+                fic_sz.height = self._roi_sz.sz.height;
                 CHK_FIC_NOGIL(fic.ficiMean_8u_C1R(
                         <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
                          fic_sz, &mean_error))
@@ -884,5 +895,3 @@ def do_bg_maint( FastImage.FastImage32f running_mean_im,
     else:
         res = None
     return res
-
-

@@ -9,10 +9,7 @@ import motmot.FastImage.util as FastImage_util
 
 # build with same IPP as FastImage
 major,minor,build = FastImage.get_IPP_version()
-vals = FastImage_util.get_build_info(ipp_static=FastImage.get_IPP_static(),
-                                     ipp_version='%d.%d'%(major,minor),
-                                     ipp_arch=FastImage.get_IPP_arch(),
-                                     )
+vals = FastImage_util.get_build_info(ipp_arch=FastImage.get_IPP_arch())
 
 ipp_sources = vals.get('ipp_sources',[])
 ipp_include_dirs = vals.get('ipp_include_dirs',[])
