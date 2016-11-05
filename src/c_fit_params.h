@@ -1,7 +1,7 @@
 #ifndef _C_FIT_PARAMS_h_
 #define _C_FIT_PARAMS_h_
 
-#include <opencv2/opencv.hpp>
+#include "ippi.h"
 
 typedef enum {
   CFitParamsNoError,
@@ -21,11 +21,9 @@ typedef enum {
 * is the number of bytes between the beginning of adjacent rows
 * in the image pointer.
 **********************************************************/
-CFitParamsReturnType fit_params( CvMoments *pState,
-                                 double *x0, double *y0,
+CFitParamsReturnType fit_params( IppiMomentState_64f *pState, double *x0, double *y0,
 				 double *Mu00,
 				 double *Uu11, double *Uu20, double *Uu02,
-				 int width, int height,
-                                 unsigned char *img, int img_step );
+				 int width, int height, unsigned char *img, int img_step );
 
 #endif

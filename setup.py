@@ -7,8 +7,6 @@ import pkg_resources # make sure FastImage is importable
 import motmot.FastImage.FastImage as FastImage
 import motmot.FastImage.util as FastImage_util
 
-cv_static_link=True
-
 # build with same IPP as FastImage
 major,minor,build = FastImage.get_IPP_version()
 vals = FastImage_util.get_build_info(ipp_arch=FastImage.get_IPP_arch(),
@@ -23,41 +21,6 @@ ipp_extra_link_args = vals.get('extra_link_args',[])
 ipp_extra_compile_args = vals.get('extra_compile_args',[])
 ipp_extra_objects = vals.get('ipp_extra_objects',[])
 
-cv_base = os.environ.get('OPENCVROOT', '/usr')
-if os.path.exists('/usr/include/opencv-2.3.1'):
-    #ROS packaging
-    cv_inc_dir = 'opencv-2.3.1'
-else:
-    #debian packaging
-    cv_inc_dir = 'include'
-
-cv_include_dirs = [os.path.join(cv_base,cv_inc_dir),
-                   os.path.join(cv_base,'modules/core',cv_inc_dir),
-                   os.path.join(cv_base,'modules/imgproc',cv_inc_dir),
-                   os.path.join(cv_base,'modules/photo',cv_inc_dir),
-                   os.path.join(cv_base,'modules/video',cv_inc_dir),
-                   os.path.join(cv_base,'modules/features2d',cv_inc_dir),
-                   os.path.join(cv_base,'modules/flann',cv_inc_dir),
-                   os.path.join(cv_base,'modules/objdetect',cv_inc_dir),
-                   os.path.join(cv_base,'modules/calib3d',cv_inc_dir),
-                   os.path.join(cv_base,'modules/imgcodecs',cv_inc_dir),
-                   os.path.join(cv_base,'modules/videoio',cv_inc_dir),
-                   os.path.join(cv_base,'modules/highgui',cv_inc_dir),
-                   os.path.join(cv_base,'modules/ml',cv_inc_dir),
-                  ]
-
-cv_libraries = ['opencv_core',
-                #'opencv_legacy',
-                'opencv_imgproc',
-                ]
-cv_extra_objects = []
-
-if cv_static_link:
-    build_dir = os.path.join(cv_base,'build')
-    lib_dir = os.path.join(build_dir,'lib')
-    cv_extra_objects = [os.path.join(lib_dir,'lib'+lib+'.a') for lib in cv_libraries]
-    cv_libraries = []
-
 ext_modules = []
 
 if 1:
@@ -69,13 +32,13 @@ if 1:
                                      ]+ipp_sources
     ext_modules.append(Extension(name='motmot.realtime_image_analysis.realtime_image_analysis',
                                  sources=realtime_image_analysis_sources,
-                                 include_dirs=ipp_include_dirs+cv_include_dirs,
+                                 include_dirs=ipp_include_dirs,
                                  library_dirs=ipp_library_dirs,
-                                 libraries=ipp_libraries+cv_libraries+['stdc++'],
+                                 libraries=ipp_libraries,
                                  define_macros=ipp_define_macros,
                                  extra_link_args=ipp_extra_link_args,
                                  extra_compile_args=ipp_extra_compile_args,
-                                 extra_objects=ipp_extra_objects+cv_extra_objects,
+                                 extra_objects=ipp_extra_objects,
                                  language="c++",
                                  ))
     ext_modules = cythonize(ext_modules)

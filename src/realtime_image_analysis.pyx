@@ -25,7 +25,6 @@ cimport c_python
 cimport fic
 cimport ipp
 cimport fit_params
-cimport opencv
 
 cdef extern from "unistd.h":
     ctypedef long intptr_t
@@ -77,7 +76,20 @@ class FitParamsError(Exception):
     pass
 
 cdef class FitParamsClass:
-    cdef opencv.CvMoments pState
+    cdef ipp.IppiMomentState_64f* pState
+
+    def __cinit__(self,*args,**kw):
+        cdef int size
+
+        self.pState = NULL
+        # image moment calculation initialization
+        CHK_HAVEGIL(ipp.ippiMomentGetStateSize_64f(ipp.ippAlgHintFast,&size))
+        self.pState = <ipp.IppiMomentState_64f*>ipp.ippMalloc(size)
+        CHK_HAVEGIL( ipp.ippiMomentInit_64f( self.pState, ipp.ippAlgHintFast ) )
+
+    def __dealloc__(self):
+        ipp.ippFree( self.pState )
+
     @cython.cdivision(True)
     def fit(self,FastImage.FastImage8u im):
         cdef double x0, y0
@@ -88,7 +100,7 @@ cdef class FitParamsClass:
         cdef double evalA, evalB
         cdef double evecA1, evecB1
 
-        result = fit_params.fit_params( &self.pState, &x0, &y0,
+        result = fit_params.fit_params( self.pState, &x0, &y0,
                                         &Mu00,
                                         &Uu11, &Uu20, &Uu02,
                                         im.imsiz.sz.width, im.imsiz.sz.height,
@@ -169,10 +181,22 @@ cdef class RealtimeAnalyzer:
     cdef FastImage.FastImage8u mean_im_roi_view, cmp_im_roi_view
 
     # other stuff
-    cdef opencv.CvMoments pState
+    cdef ipp.IppiMomentState_64f* pState
 
     cdef object imname2im
     cdef int _max_num_points
+
+    def __cinit__(self,*args,**kw):
+        cdef int size
+
+        self.pState = NULL
+        # image moment calculation initialization
+        CHK_HAVEGIL(ipp.ippiMomentGetStateSize_64f(ipp.ippAlgHintFast,&size))
+        self.pState = <ipp.IppiMomentState_64f*>ipp.ippMalloc(size)
+        CHK_HAVEGIL( ipp.ippiMomentInit_64f( self.pState, ipp.ippAlgHintFast ) )
+
+    def __dealloc__(self):
+        ipp.ippFree( self.pState )
 
     def __init__(self,object lbrt,int maxwidth, int maxheight, int max_num_points, int roi2_radius):
         # software analysis ROI
@@ -432,7 +456,7 @@ cdef class RealtimeAnalyzer:
                         found_point = 0 # c int (bool)
                 if found_point:
                     result = fit_params.fit_params(
-                        &self.pState, &x0, &y0,
+                        self.pState, &x0, &y0,
                         &Mu00,
                         &Uu11, &Uu20, &Uu02,
                         roi2_sz.sz.width, roi2_sz.sz.height,
@@ -583,7 +607,7 @@ cdef class RealtimeAnalyzer:
             self.cmpdiff_im_roi_view = self.cmpdiff_im.roi(self._left,self._bottom,self._roi_sz)
 
 def fit_slope(FastImage.FastImage8u im):
-    cdef opencv.CvMoments pState
+    cdef ipp.IppiMomentState_64f* pState
     cdef double x0, y0
     cdef double rise, run, slope, eccentricity
     cdef double evalA, evalB
@@ -592,12 +616,21 @@ def fit_slope(FastImage.FastImage8u im):
     cdef double Mu00, Uu11, Uu02, Uu20
     cdef int result, eigen_err
 
-    result = fit_params.fit_params( &pState, &x0, &y0,
+    cdef int size
+
+    pState = NULL
+    # image moment calculation initialization
+    CHK_HAVEGIL(ipp.ippiMomentGetStateSize_64f(ipp.ippAlgHintFast,&size))
+    pState = <ipp.IppiMomentState_64f*>ipp.ippMalloc(size)
+    CHK_HAVEGIL( ipp.ippiMomentInit_64f( pState, ipp.ippAlgHintFast ) )
+
+    result = fit_params.fit_params( pState, &x0, &y0,
                                     &Mu00,
                                     &Uu11, &Uu20, &Uu02,
                                     im.imsiz.sz.width, im.imsiz.sz.height,
                                     <unsigned char*>im.im,
                                     im.step)
+    ipp.ippFree( pState )
 
     # See note at top of file about determining orientation from
     # pixel covariance.
