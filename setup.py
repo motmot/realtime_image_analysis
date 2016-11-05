@@ -9,7 +9,8 @@ import motmot.FastImage.util as FastImage_util
 
 # build with same IPP as FastImage
 major,minor,build = FastImage.get_IPP_version()
-vals = FastImage_util.get_build_info(ipp_arch=FastImage.get_IPP_arch())
+vals = FastImage_util.get_build_info(ipp_arch=FastImage.get_IPP_arch(),
+                                     ipp_static=True)
 
 ipp_sources = vals.get('ipp_sources',[])
 ipp_include_dirs = vals.get('ipp_include_dirs',[])
@@ -18,6 +19,7 @@ ipp_libraries = vals.get('ipp_libraries',[])
 ipp_define_macros = vals.get('ipp_define_macros',[])
 ipp_extra_link_args = vals.get('extra_link_args',[])
 ipp_extra_compile_args = vals.get('extra_compile_args',[])
+ipp_extra_objects = vals.get('ipp_extra_objects',[])
 
 if os.path.exists('/usr/include/opencv-2.3.1'):
     #ROS packaging
@@ -49,6 +51,7 @@ if 1:
                                  define_macros=ipp_define_macros,
                                  extra_link_args=ipp_extra_link_args,
                                  extra_compile_args=ipp_extra_compile_args,
+                                 extra_objects=ipp_extra_objects,
                                  language="c++",
                                  ))
     ext_modules = cythonize(ext_modules)
