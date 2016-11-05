@@ -230,7 +230,6 @@ cdef class RealtimeAnalyzer:
                 int use_cmp=0,
                 double max_duration_sec=0.0,
                 int return_debug_values=0,
-                int n_erode_absdiff=0,
                 int return_extra=0
                 ):
         """find location and orientation of local points (fast enough for realtime use)
@@ -316,10 +315,6 @@ cdef class RealtimeAnalyzer:
 
             CHK_NOGIL( ipp.ippiSet_8u_C1MR( 0, <ipp.Ipp8u*>self.absdiff_im.im, self.absdiff_im.step, self.absdiff_im.imsiz.sz,
                                             <ipp.Ipp8u*>self.mask_im.im, self.mask_im.step))
-
-
-            for i from 0<=i<n_erode_absdiff:
-                CHK_NOGIL( ipp.ippiErode3x3_8u_C1IR( <ipp.Ipp8u*>self.absdiff_im_roi_view.im, self.absdiff_im_roi_view.step, self._roi_sz.sz))
 
             if use_cmp:
                 # clip the minimum comparison value to diff_threshold
