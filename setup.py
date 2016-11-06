@@ -33,7 +33,7 @@ if 1:
                                  ))
     ext_modules = cythonize(ext_modules)
 
-setup(name='motmot.realtime_image_analysis-ipp',
+setup(name='motmot.realtime_image_analysis',
       description="several image analysis functions that require Intel IPP and FastImage",
       long_description=
 """This code serves as the basis for at least 2 different classes of
