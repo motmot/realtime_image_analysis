@@ -606,6 +606,7 @@ cdef class RealtimeAnalyzer:
             self.cmp_im_roi_view = self.cmp_im.roi(self._left,self._bottom,self._roi_sz)
             self.cmpdiff_im_roi_view = self.cmpdiff_im.roi(self._left,self._bottom,self._roi_sz)
 
+@cython.cdivision(True)
 def fit_slope(FastImage.FastImage8u im):
     cdef ipp.IppiMomentState_64f* pState
     cdef double x0, y0
@@ -632,6 +633,10 @@ def fit_slope(FastImage.FastImage8u im):
                                     im.step)
     ipp.ippFree( pState )
 
+
+    slope = nan
+    eccentricity = 0.0
+
     # See note at top of file about determining orientation from
     # pixel covariance.
 
@@ -642,10 +647,7 @@ def fit_slope(FastImage.FastImage8u im):
                                     Uu11, Uu02,
                                     &evalA, &evecA1,
                                     &evalB, &evecB1)
-        if eigen_err:
-            slope = nan
-            eccentricity = 0.0
-        else:
+        if not eigen_err:
             rise = 1.0 # 2nd component of eigenvectors will always be 1.0
             if evalA > evalB:
                 run = evecA1
@@ -658,11 +660,8 @@ def fit_slope(FastImage.FastImage8u im):
     elif result == fit_params.CFitParamsZeroMomentError:
         x0 = nan
         y0 = nan
-        x0_abs = nan
-        y0_abs = nan
-        found_point = 0
     elif result == fit_params.CFitParamsCentralMomentError:
-        slope = nan
+        pass
     else:
         raise ValueError('unknown result (%d)'%result)
 
