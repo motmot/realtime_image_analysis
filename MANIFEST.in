@@ -1,4 +1,5 @@
-include src/realtime_image_analysis.c
 include src/*.h
 include src/*.pyx
 include stdeb.cfg
+include LICENSE.txt
+include src/fit_params.pxd
