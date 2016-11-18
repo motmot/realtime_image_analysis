@@ -16,7 +16,7 @@ vals = FastImage_util.get_build_info(ipp_arch=FastImage.get_IPP_arch(),
 ext_modules = []
 
 if 1:
-    realtime_image_analysis_sources=['src/realtime_image_analysis.pyx',
+    realtime_image_analysis_sources=['motmot/realtime_image_analysis/realtime_image_analysis.pyx',
                                      'src/c_fit_params.cpp',
                                      'src/fic.c',
                                      'src/eigen.c',
@@ -24,7 +24,7 @@ if 1:
                                      ]
     ext_modules.append(Extension(name='motmot.realtime_image_analysis.realtime_image_analysis',
                                  sources=realtime_image_analysis_sources,
-                                 include_dirs=vals['ipp_include_dirs'],
+                                 include_dirs=vals['ipp_include_dirs']+['src'],
                                  library_dirs=vals['ipp_library_dirs'],
                                  libraries=vals['ipp_libraries'],
                                  define_macros=vals['ipp_define_macros'],
@@ -47,5 +47,7 @@ distortion information.""",
       license='BSD',
       namespace_packages = ['motmot'],
       packages = find_packages(),
+      include_package_data=True,
+      zip_safe= False,
       ext_modules= ext_modules,
       )

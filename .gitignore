@@ -3,5 +3,6 @@ motmot/realtime_image_analysis/realtime_image_analysis.so
 *.pyc
 dist
 *~
-src/realtime_image_analysis.cpp
 motmot.realtime_image_analysis_ipp.egg-info
+motmot/realtime_image_analysis/realtime_image_analysis.cpp
+motmot.realtime_image_analysis.egg-info
