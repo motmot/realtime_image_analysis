@@ -1,1 +1,0 @@
-../../FastImage/src/c_python.pxd
