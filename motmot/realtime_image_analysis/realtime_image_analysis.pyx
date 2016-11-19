@@ -381,7 +381,7 @@ cdef class RealtimeAnalyzer:
                                                      self._roi_sz.sz,0))
                     ipp_sz.width = self._roi_sz.sz.width;
                     ipp_sz.height = self._roi_sz.sz.height;
-                    CHK_FIC_NOGIL( ipp.ippiMinMaxIndx_8u_C1R(
+                    CHK_NOGIL( ipp.ippiMinMaxIndx_8u_C1R(
                         <ipp.Ipp8u*>self.cmpdiff_im_roi_view.im,self.cmpdiff_im_roi_view.step,
                         ipp_sz, &min_std_diff, &max_std_diff, &min_index, &max_index))
                     index_x = max_index.x
