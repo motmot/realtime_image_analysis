@@ -18,9 +18,6 @@ import motmot.FastImage.FastImage as FastImage
 cdef double nan
 nan = nx.nan
 
-cimport motmot.FastImage.c_lib as c_lib
-cimport motmot.FastImage.c_python as c_python
-
 cimport motmot.FastImage.ipp as ipp
 cimport fit_params
 
@@ -51,13 +48,6 @@ cdef extern from "c_time_time.h" nogil:
 cdef void CHK_HAVEGIL( ipp.IppStatus errval ) except *:
     if (errval != ipp.ippStsNoErr):
         raise FastImage.IppError(errval)
-
-##cdef void SET_ERR( int errval ):
-##    # This is rather crude at the moment because calls to the Python C
-##    # API cannot be made.  (This code is executed when we have
-##    # released the GIL.)
-##    c_lib.printf("SET_ERR(%d) called! (May not have GIL, cannot raise exception.)\n",errval)
-##    c_lib.exit(2)
 
 cdef print_8u_arr(ipp.Ipp8u* src,int width,int height,int src_step):
   cdef int row, col
