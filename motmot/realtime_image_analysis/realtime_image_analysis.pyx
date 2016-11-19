@@ -21,7 +21,6 @@ nan = nx.nan
 cimport motmot.FastImage.c_lib as c_lib
 cimport motmot.FastImage.c_python as c_python
 
-cimport motmot.FastImage.fic as fic
 cimport motmot.FastImage.ipp as ipp
 cimport fit_params
 
@@ -44,7 +43,6 @@ cdef extern from "motmot_ria_macros.h" nogil:
     ipp.Ipp8u*  IMPOS8u(  ipp.Ipp8u*  im, int step, int bottom, int left)
     ipp.Ipp32f* IMPOS32f( ipp.Ipp32f* im, int step, int bottom, int left)
     void CHK_NOGIL( ipp.IppStatus errval )
-    void CHK_FIC_NOGIL( fic.FicStatus errval )
     void SET_ERR( int errval )
 
 cdef extern from "c_time_time.h" nogil:
@@ -303,7 +301,6 @@ cdef class RealtimeAnalyzer:
 
         cdef double entry_time
         cdef double now
-        cdef fic.FiciSize fic_sz
         cdef ipp.IppiSize ipp_sz
 
         entry_time = time.time()
@@ -523,11 +520,9 @@ cdef class RealtimeAnalyzer:
                 index_x = max_index.x
                 index_y = max_index.y
 
-                fic_sz.width = self._roi_sz.sz.width;
-                fic_sz.height = self._roi_sz.sz.height;
-                CHK_FIC_NOGIL(fic.ficiMean_8u_C1R(
-                        <fic.Fic8u*>self.absdiff_im_roi_view.im,self.absdiff_im_roi_view.step,
-                         fic_sz, &mean_error))
+                CHK_NOGIL(ipp.ippiMean_8u_C1R(
+                        <ipp.Ipp8u*>self.absdiff_im_roi_view.im, self.absdiff_im_roi_view.step,
+                         self._roi_sz.sz, &mean_error))
 
             extra = {
                 # absdiff_im is now the difference between the raw frame and ufmf reconstructable image

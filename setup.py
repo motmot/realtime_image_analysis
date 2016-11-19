@@ -18,7 +18,6 @@ ext_modules = []
 if 1:
     realtime_image_analysis_sources=['motmot/realtime_image_analysis/realtime_image_analysis.pyx',
                                      'src/c_fit_params.cpp',
-                                     'src/fic.c',
                                      'src/eigen.c',
                                      'src/c_time_time.c',
                                      ]
