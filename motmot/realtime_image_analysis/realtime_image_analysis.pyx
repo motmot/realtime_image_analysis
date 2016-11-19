@@ -9,7 +9,6 @@
 import cython
 
 import time
-import numpy as nx
 import warnings
 
 cimport numpy
@@ -19,7 +18,7 @@ cimport motmot.FastImage.FastImage as FastImage
 import motmot.FastImage.FastImage as FastImage
 
 cdef double nan
-nan = nx.nan
+nan = numpy.nan
 
 cimport motmot.FastImage.ipp as ipp
 cimport fit_params
