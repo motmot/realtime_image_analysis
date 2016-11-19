@@ -12,6 +12,9 @@ import time
 import numpy as nx
 import warnings
 
+cimport numpy
+import numpy
+
 cimport motmot.FastImage.FastImage as FastImage
 import motmot.FastImage.FastImage as FastImage
 
@@ -20,6 +23,8 @@ nan = nx.nan
 
 cimport motmot.FastImage.ipp as ipp
 cimport fit_params
+
+numpy.import_array()
 
 cdef extern from "unistd.h":
     ctypedef long intptr_t

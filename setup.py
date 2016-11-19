@@ -1,5 +1,6 @@
 import sys
 import os.path
+import numpy
 from setuptools import setup, Extension, find_packages
 from Cython.Build import cythonize
 
@@ -23,7 +24,7 @@ if 1:
                                      ]
     ext_modules.append(Extension(name='motmot.realtime_image_analysis.realtime_image_analysis',
                                  sources=realtime_image_analysis_sources,
-                                 include_dirs=vals['ipp_include_dirs']+['src'],
+                                 include_dirs=vals['ipp_include_dirs']+['src']+[numpy.get_include()],
                                  library_dirs=vals['ipp_library_dirs'],
                                  libraries=vals['ipp_libraries'],
                                  define_macros=vals['ipp_define_macros'],
