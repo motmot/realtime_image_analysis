@@ -41,7 +41,7 @@ setup(name='motmot.realtime_image_analysis',
 realtime trackers: 2D only trackers with no consideration of camera
 calibration and potentially-3D trackers with camera calibration and
 distortion information.""",
-      version='0.7.0', # also in motmot/realtime_image_analysis/__init__.py
+      version='0.8.0', # also in motmot/realtime_image_analysis/__init__.py
       author="Andrew Straw",
       author_email="strawman@astraw.com",
       url='http://code.astraw.com/projects/motmot',
