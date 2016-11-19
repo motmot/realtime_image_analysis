@@ -41,10 +41,12 @@ cdef extern from "eigen.h" nogil:
                         double *evalA, double *evecA1,
                         double *evalB, double *evecB1 )
 
-cdef extern from "motmot_ria_macros.h" nogil:
+cdef extern from "FastImage_macros.h" nogil:
     ipp.Ipp8u*  IMPOS8u(  ipp.Ipp8u*  im, int step, int bottom, int left)
     ipp.Ipp32f* IMPOS32f( ipp.Ipp32f* im, int step, int bottom, int left)
     void CHK_NOGIL( ipp.IppStatus errval )
+
+cdef extern from "motmot_ria_macros.h" nogil:
     void SET_ERR( int errval )
 
 cdef extern from "c_time_time.h" nogil:

@@ -5,6 +5,7 @@ from setuptools import setup, Extension, find_packages
 from Cython.Build import cythonize
 
 import pkg_resources # make sure FastImage is importable
+import motmot.FastImage as fi_mod
 import motmot.FastImage.FastImage as FastImage
 import motmot.FastImage.util as FastImage_util
 
@@ -24,7 +25,7 @@ if 1:
                                      ]
     ext_modules.append(Extension(name='motmot.realtime_image_analysis.realtime_image_analysis',
                                  sources=realtime_image_analysis_sources,
-                                 include_dirs=vals['ipp_include_dirs']+['src']+[numpy.get_include()],
+                                 include_dirs=vals['ipp_include_dirs']+['src']+[numpy.get_include(), fi_mod.get_include()],
                                  library_dirs=vals['ipp_library_dirs'],
                                  libraries=vals['ipp_libraries'],
                                  define_macros=vals['ipp_define_macros'],
