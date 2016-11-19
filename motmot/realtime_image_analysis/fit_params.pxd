@@ -1,4 +1,4 @@
-cimport motmot.FastImage.ipp as ipp
+cimport cython_ipp.ipp as ipp
 
 cdef extern from "c_fit_params.h" nogil:
     ctypedef enum CFitParamsReturnType:

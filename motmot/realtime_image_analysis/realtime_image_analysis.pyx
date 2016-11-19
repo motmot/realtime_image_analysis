@@ -20,7 +20,7 @@ import motmot.FastImage.FastImage as FastImage
 cdef double nan
 nan = numpy.nan
 
-cimport motmot.FastImage.ipp as ipp
+cimport cython_ipp.ipp as ipp
 cimport fit_params
 
 numpy.import_array()
